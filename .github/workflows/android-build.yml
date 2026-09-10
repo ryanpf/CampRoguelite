@@ -22,8 +22,10 @@ jobs:
 
       - name: Prepare export templates
         run: |
-          mkdir -p ~/.local/share/godot/export_templates
-          cp -r /root/.local/share/godot/export_templates/4.2.2.stable ~/.local/share/godot/export_templates/4.2.2.stable
+          mkdir -v -p ~/.local/share/godot/export_templates/
+          mkdir -v -p ~/.config/
+          mv /root/.config/godot ~/.config/godot || true
+          mv /root/.local/share/godot/export_templates/4.2.2.stable ~/.local/share/godot/export_templates/4.2.2.stable || true
 
       - name: Configure Godot Android editor settings
         run: |
