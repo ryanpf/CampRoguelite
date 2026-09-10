@@ -47,13 +47,36 @@ jobs:
           yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
           "$SDKMANAGER" "platforms;android-34" "build-tools;34.0.0"
 
-      - name: Export Android debug APK
+      - name: Ensure debug keystore exists
         run: |
+          if [ ! -f /root/debug.keystore ]; then
+            keytool -genkeypair \
+              -keystore /root/debug.keystore \
+              -storepass android \
+              -storetype pkcs12 \
+              -validity 9990 \
+              -keyalg RSA \
+              -alias androiddebugkey \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+      - name: Export Android debug APK
+        shell: bash
+        run: |
+          set -o pipefail
           mkdir -p build/android
-          godot --headless --path . --export-debug "Android" build/android/CampRoguelite.apk
+          godot --headless --verbose --path . --export-debug "Android" build/android/CampRoguelite.apk 2>&1 | tee build/android/export.log
 
       - name: Upload APK artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: CampRoguelite-android-apk
           path: build/android/CampRoguelite.apk
+
+      - name: Upload export log artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CampRoguelite-android-export-log
+          path: build/android/export.log
