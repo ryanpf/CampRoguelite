@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_p4xbl"]
+[ext_resource type="PackedScene" path="res://scenes/dialogue/dialogue_box.tscn" id="2_dlgbx"]
 
 [node name="Main" type="Control"]
 layout_mode = 3
@@ -27,3 +28,6 @@ grow_vertical = 2
 horizontal_alignment = 1
 vertical_alignment = 1
 text = "Version"
+
+[node name="DialogueBox" parent="." instance=ExtResource("2_dlgbx")]
+layout_mode = 1
