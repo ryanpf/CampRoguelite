@@ -1,0 +1,34 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  export-android:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.2.2
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare export templates
+        run: |
+          mkdir -p ~/.local/share/godot/export_templates
+          cp -r /root/.local/share/godot/export_templates/4.2.2.stable ~/.local/share/godot/export_templates/4.2.2.stable
+
+      - name: Export Android debug APK
+        run: |
+          mkdir -p build/android
+          godot --headless --path . --export-debug "Android" build/android/CampRoguelite.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CampRoguelite-android-apk
+          path: build/android/CampRoguelite.apk
