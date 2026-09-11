@@ -62,6 +62,15 @@ jobs:
               -dname "CN=Android Debug,O=Android,C=US"
           fi
 
+      - name: Append git revision to build version
+        shell: bash
+        run: |
+          REVISION="$(git rev-parse --short HEAD)"
+          BASE_VERSION="$(sed -n 's/^config\/version="\([^"]*\)"$/\1/p' project.godot)"
+          BUILD_VERSION="${BASE_VERSION}-${REVISION}"
+          sed -i "s/^config\/version=\".*\"$/config\/version=\"$BUILD_VERSION\"/" project.godot
+          sed -i "s/^version\/name=\".*\"$/version\/name=\"$BUILD_VERSION\"/" export_presets.cfg
+
       - name: Export Android debug APK
         shell: bash
         run: |
