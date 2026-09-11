@@ -62,10 +62,10 @@ jobs:
               -dname "CN=Android Debug,O=Android,C=US"
           fi
 
-      - name: Append git revision to build version
+      - name: Append GitHub SHA to build version
         shell: bash
         run: |
-          REVISION="$(git rev-parse --short HEAD)"
+          REVISION="${GITHUB_SHA::7}"
           BASE_VERSION="$(sed -n 's/^config\/version="\([^"]*\)"$/\1/p' project.godot)"
           BUILD_VERSION="${BASE_VERSION}-${REVISION}"
           sed -i "s/^config\/version=\".*\"$/config\/version=\"$BUILD_VERSION\"/" project.godot
