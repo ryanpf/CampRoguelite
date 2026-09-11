@@ -35,6 +35,11 @@ jobs:
           mkdir -p build/web
           godot --headless --verbose --path . --export-debug "Web" build/web/index.html 2>&1 | tee build/web/export.log
 
+      - name: Add cross-origin isolation service worker
+        shell: bash
+        run: |
+          cp web/coi-serviceworker.js build/web/coi-serviceworker.js
+
       - name: Deploy PR preview to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
