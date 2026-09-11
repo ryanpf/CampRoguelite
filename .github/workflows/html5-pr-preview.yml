@@ -1,0 +1,76 @@
+name: Build HTML5 PR Preview
+
+on:
+  pull_request:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: html5-pr-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.2.2
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare export templates
+        run: |
+          mkdir -v -p ~/.local/share/godot/export_templates/
+          mkdir -v -p ~/.config/
+          mv /root/.config/godot ~/.config/godot || true
+          mv /root/.local/share/godot/export_templates/4.2.2.stable ~/.local/share/godot/export_templates/4.2.2.stable || true
+
+      - name: Export HTML5 build
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p build/web
+          godot --headless --verbose --path . --export-debug "Web" build/web/index.html 2>&1 | tee build/web/export.log
+
+      - name: Add cross-origin isolation service worker
+        shell: bash
+        run: |
+          cp web/coi-serviceworker.js build/web/coi-serviceworker.js
+
+      - name: Deploy PR preview to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: build/web
+          destination_dir: pr-${{ github.event.pull_request.number }}
+          keep_files: true
+          exclude_assets: 'export.log'
+
+      - name: Comment preview link on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const url = `https://${owner}.github.io/${repo}/pr-${context.payload.pull_request.number}/`;
+            const body = `🎮 HTML5 preview build deployed: ${url}`;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number: context.payload.pull_request.number,
+            });
+            const existing = comments.find(c => c.user.type === 'Bot' && c.body.includes('HTML5 preview build deployed'));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number: context.payload.pull_request.number, body });
+            }
+
+      - name: Upload export log artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CampRoguelite-html5-export-log
+          path: build/web/export.log
