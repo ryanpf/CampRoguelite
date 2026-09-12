@@ -62,13 +62,10 @@ jobs:
           fi
 
       - name: Append GitHub SHA to build version
-        shell: bash
-        run: |
-          REVISION="${GITHUB_SHA::7}"
-          BASE_VERSION="$(sed -n 's/^config\/version="\([^"]*\)"$/\1/p' project.godot)"
-          BUILD_VERSION="${BASE_VERSION}-${REVISION}"
-          sed -i "s/^config\/version=\".*\"$/config\/version=\"$BUILD_VERSION\"/" project.godot
-          sed -i "s/^version\/name=\".*\"$/version\/name=\"$BUILD_VERSION\"/" export_presets.cfg
+        uses: ./.github/actions/append-build-version
+        with:
+          sha: ${{ github.sha }}
+          update-export-presets: "true"
 
       - name: Export Android debug APK
         shell: bash

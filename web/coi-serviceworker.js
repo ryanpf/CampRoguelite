@@ -31,11 +31,18 @@ if (typeof window === 'undefined') {
             return;
         }
 
+        // Always bypass the HTTP cache: PR preview builds reuse the same
+        // asset URLs on every deploy, so stale cached responses (including
+        // the large .wasm/.pck game data) must never be served to returning
+        // visitors.
         const request = (coepCredentialless && r.mode === "no-cors")
             ? new Request(r, {
                 credentials: "omit",
+                cache: "no-store",
             })
-            : r;
+            : new Request(r, {
+                cache: "no-store",
+            });
         event.respondWith(
             fetch(request)
                 .then((response) => {
@@ -51,6 +58,7 @@ if (typeof window === 'undefined') {
                         newHeaders.set("Cross-Origin-Resource-Policy", "cross-origin");
                     }
                     newHeaders.set("Cross-Origin-Opener-Policy", "same-origin");
+                    newHeaders.set("Cache-Control", "no-cache, no-store, must-revalidate");
 
                     return new Response(response.body, {
                         status: response.status,
