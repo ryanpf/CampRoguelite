@@ -28,6 +28,17 @@ jobs:
           mv /root/.config/godot ~/.config/godot || true
           mv /root/.local/share/godot/export_templates/4.2.2.stable ~/.local/share/godot/export_templates/4.2.2.stable || true
 
+      - name: Append GitHub SHA to build version
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          REVISION="${HEAD_SHA::7}"
+          BASE_VERSION="$(sed -n 's/^config\/version="\([^"]*\)"$/\1/p' project.godot)"
+          BUILD_VERSION="${BASE_VERSION}-${REVISION}"
+          echo "BUILD_VERSION=${BUILD_VERSION}" >> "$GITHUB_ENV"
+          sed -i "s/^config\/version=\".*\"$/config\/version=\"$BUILD_VERSION\"/" project.godot
+
       - name: Export HTML5 build
         shell: bash
         run: |
@@ -69,6 +80,13 @@ jobs:
           # Disallow caching of the HTML mount page itself so returning
           # visitors always re-fetch the latest build's markup/config.
           sed -i "s#<meta charset=\"utf-8\">#<meta charset=\"utf-8\">\n\t\t<meta http-equiv=\"Cache-Control\" content=\"no-cache, no-store, must-revalidate\">\n\t\t<meta http-equiv=\"Pragma\" content=\"no-cache\">\n\t\t<meta http-equiv=\"Expires\" content=\"0\">#" "$INDEX"
+
+          # Show the build version + short SHA directly on the mount page
+          # (outside the game canvas) so it's immediately visible which
+          # build is loaded, even if the WASM game itself fails to start
+          # or the browser is still serving a stale cached page.
+          BUILD_INFO_HTML="<div id=\"build-info\" style=\"position:fixed;bottom:4px;right:6px;font:11px monospace;color:#ccc;background:rgba(0,0,0,0.6);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none;\">${BUILD_VERSION}</div>"
+          sed -i "s@<body>@<body>\n\t\t${BUILD_INFO_HTML}@" "$INDEX"
 
       - name: Deploy PR preview to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
