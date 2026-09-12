@@ -1,0 +1,11 @@
+# Conversation between Balaam and his donkey (adapted from Numbers 22:28-30, KJV).
+# Each list entry is one dialogue segment with a "speaker" (a character id
+# defined in data/characters.yml) and their "text".
+- speaker: donkey
+  text: "What have I done unto thee, that thou hast smitten me these three times?"
+- speaker: balaam
+  text: "Because thou hast mocked me: I would there were a sword in mine hand, for now would I kill thee."
+- speaker: donkey
+  text: "Am not I thine ass, upon which thou hast ridden ever since I was thine unto this day? Was I ever wont to do so unto thee?"
+- speaker: balaam
+  text: "Nay."

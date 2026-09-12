@@ -1,16 +1,23 @@
 ## UI component that plays back a conversation loaded via [DialogueParser].
-## Displays the speaker's name on a visual "tab" above the dialogue text box,
-## and advances to the next segment when tapped/clicked.
+## Displays the active speaker's portrait above the dialogue text box, along
+## with their name on a visual "tab", and advances to the next segment when
+## tapped/clicked.
 extends Control
 
 signal conversation_finished
 
+## Default character file used to resolve conversation "speaker" ids to
+## display names and portraits.
+const DEFAULT_CHARACTERS_PATH := "res://data/characters.yml"
+
 @onready var speaker_tab: Panel = $SpeakerTab
 @onready var speaker_label: Label = $SpeakerTab/SpeakerLabel
+@onready var speaker_portrait: TextureRect = $SpeakerPortrait
 @onready var dialogue_text: RichTextLabel = $DialogueBox/DialogueText
 @onready var dialogue_box: Panel = $DialogueBox
 
 var _segments: Array[Dictionary] = []
+var _characters: Dictionary = {}
 var _index: int = -1
 
 
@@ -18,8 +25,10 @@ func _ready() -> void:
 	gui_input.connect(_on_gui_input)
 
 
-## Loads the conversation at [param path] and starts playing it back.
-func start_conversation(path: String) -> void:
+## Loads the conversation at [param path] and starts playing it back,
+## resolving speakers against the character file at [param characters_path].
+func start_conversation(path: String, characters_path: String = DEFAULT_CHARACTERS_PATH) -> void:
+	_characters = CharacterParser.load_characters(characters_path)
 	_segments = DialogueParser.load_conversation(path)
 	_index = -1
 	visible = not _segments.is_empty()
@@ -36,7 +45,12 @@ func advance() -> void:
 		return
 
 	var segment := _segments[_index]
-	speaker_label.text = str(segment.get("speaker", ""))
+	var character_id := str(segment.get("speaker", ""))
+	var character: Dictionary = _characters.get(character_id, {})
+	speaker_label.text = str(character.get("name", character_id))
+	var portrait: Texture2D = character.get("portrait")
+	speaker_portrait.texture = portrait
+	speaker_portrait.visible = portrait != null
 	dialogue_text.text = str(segment.get("text", ""))
 
 
