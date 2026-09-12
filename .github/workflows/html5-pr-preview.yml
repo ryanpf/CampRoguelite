@@ -40,6 +40,55 @@ jobs:
         run: |
           cp web/coi-serviceworker.js build/web/coi-serviceworker.js
 
+      - name: Add cache-busting query strings and no-cache mount page
+        shell: bash
+        env:
+          BUILD_ID: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -o pipefail
+          BUILD_ID="${BUILD_ID::7}"
+          python3 - "$BUILD_ID" << 'PYEOF'
+          import re
+          import sys
+
+          build_id = sys.argv[1]
+          path = "build/web/index.html"
+          with open(path, "r", encoding="utf-8") as f:
+              html = f.read()
+
+          # Bust the browser cache for directly-referenced entry assets by
+          # appending a build-specific query string. These are plain
+          # <script src>/<link href> fetches, so a query string is safe.
+          for asset in ("index.js", "coi-serviceworker.js", "index.icon.png", "index.apple-touch-icon.png"):
+              html = re.sub(
+                  rf'(src|href)=(["\']){re.escape(asset)}\2',
+                  rf'\1=\2{asset}?v={build_id}\2',
+                  html,
+              )
+
+          # Bust the cache for the main .pck data file via the engine's own
+          # `mainPack` override, keeping the matching `fileSizes` key in sync
+          # so the loading progress bar keeps working. The `.wasm`/`.worker.js`
+          # files are intentionally left untouched: Godot's engine.js derives
+          # their URLs by string concatenation on `executable`, and a query
+          # string there would corrupt the computed path (e.g. "index?v=1.wasm").
+          busted_pck = f"index.pck?v={build_id}"
+          html = html.replace('"executable":"index"', f'"executable":"index","mainPack":"{busted_pck}"')
+          html = html.replace('"index.pck":', f'"{busted_pck}":')
+
+          # Disallow caching of the HTML mount page itself so returning
+          # visitors always re-fetch the latest build's markup/config.
+          no_cache_meta = (
+              '<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">\n'
+              '\t\t<meta http-equiv="Pragma" content="no-cache">\n'
+              '\t\t<meta http-equiv="Expires" content="0">'
+          )
+          html = html.replace('<meta charset="utf-8">', '<meta charset="utf-8">\n\t\t' + no_cache_meta, 1)
+
+          with open(path, "w", encoding="utf-8") as f:
+              f.write(html)
+          PYEOF
+
       - name: Deploy PR preview to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
