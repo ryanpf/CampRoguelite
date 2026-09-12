@@ -1,0 +1,39 @@
+name: Append build SHA to version
+description: >-
+  Appends a short commit SHA to project.godot's config/version (and,
+  optionally, export_presets.cfg's version/name) so exported builds are
+  tagged with the exact commit they were built from.
+
+inputs:
+  sha:
+    description: The commit SHA to append (only the first 7 characters are used).
+    required: true
+  update-export-presets:
+    description: >-
+      Whether to also update version/name in export_presets.cfg (used by the
+      Android preset).
+    required: false
+    default: "false"
+
+outputs:
+  version:
+    description: The resulting build version string (e.g. "0.1.0-abcdef1").
+    value: ${{ steps.append.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    - id: append
+      shell: bash
+      run: |
+        REVISION="${SHA::7}"
+        BASE_VERSION="$(sed -n 's/^config\/version="\([^"]*\)"$/\1/p' project.godot)"
+        BUILD_VERSION="${BASE_VERSION}-${REVISION}"
+        sed -i "s/^config\/version=\".*\"$/config\/version=\"$BUILD_VERSION\"/" project.godot
+        if [ "${UPDATE_EXPORT_PRESETS}" = "true" ]; then
+          sed -i "s/^version\/name=\".*\"$/version\/name=\"$BUILD_VERSION\"/" export_presets.cfg
+        fi
+        echo "version=${BUILD_VERSION}" >> "$GITHUB_OUTPUT"
+      env:
+        SHA: ${{ inputs.sha }}
+        UPDATE_EXPORT_PRESETS: ${{ inputs.update-export-presets }}
