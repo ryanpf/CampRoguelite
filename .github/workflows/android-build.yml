@@ -67,6 +67,9 @@ jobs:
           sha: ${{ github.sha }}
           update-export-presets: "true"
 
+      - name: Import project resources
+        run: godot --headless --path . --import
+
       - name: Export Android debug APK
         shell: bash
         run: |

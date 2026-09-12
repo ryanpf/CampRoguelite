@@ -34,6 +34,9 @@ jobs:
         with:
           sha: ${{ github.event.pull_request.head.sha }}
 
+      - name: Import project resources
+        run: godot --headless --path . --import
+
       - name: Export HTML5 build
         shell: bash
         run: |
