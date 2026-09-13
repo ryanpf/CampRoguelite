@@ -1,0 +1,9 @@
+# Characters that can be referenced as conversation speakers.
+# Each list entry has an "id" (used by conversation files), a "name" to
+# display, and a "portrait" pointing at an image in data/art.
+- id: balaam
+  name: Balaam
+  portrait: "res://data/art/Wizard1.png"
+- id: donkey
+  name: Balaam's Donkey
+  portrait: "res://data/art/Goblin.png"

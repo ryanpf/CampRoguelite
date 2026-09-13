@@ -20,6 +20,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - name: Prepare export templates
         run: |
@@ -33,6 +35,9 @@ jobs:
         uses: ./.github/actions/append-build-version
         with:
           sha: ${{ github.event.pull_request.head.sha }}
+
+      - name: Import project resources
+        run: godot --headless --path . --import
 
       - name: Export HTML5 build
         shell: bash

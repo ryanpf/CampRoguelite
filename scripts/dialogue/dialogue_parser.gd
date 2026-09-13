@@ -5,17 +5,21 @@
 ## key, for example:
 ##
 ## [codeblock]
-## - speaker: Lorem
-##   text: "Lorem ipsum dolor sit amet."
-## - speaker: Ipsum
-##   text: "Consectetur adipiscing elit."
+## - speaker: balaam
+##   text: "What is thy will with me?"
+## - speaker: donkey
+##   text: "Have I not served thee well?"
 ## [/codeblock]
+##
+## "speaker" is the id of a character defined in a character file (see
+## [CharacterParser]), not a display name.
 class_name DialogueParser
 extends RefCounted
 
 
 ## Loads a conversation file from [param path] and returns an [Array] of
-## [Dictionary] entries shaped like {"speaker": String, "text": String}.
+## [Dictionary] entries shaped like {"speaker": String, "text": String},
+## where "speaker" is a character id (see [CharacterParser]).
 static func load_conversation(path: String) -> Array[Dictionary]:
 	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
