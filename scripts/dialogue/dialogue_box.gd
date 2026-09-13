@@ -20,6 +20,13 @@ var _segments: Array[Dictionary] = []
 var _characters: Dictionary = {}
 var _index: int = -1
 
+## Whether a press is currently being tracked, waiting for its matching
+## release. Guards against advancing twice per tap: by default Godot's
+## "input_devices/pointing/emulate_mouse_from_touch" project setting makes a
+## single touch also emit a synthetic mouse button event, so a tap/click can
+## otherwise deliver two "pressed" events to [method _on_gui_input].
+var _awaiting_release: bool = false
+
 
 func _ready() -> void:
 	gui_input.connect(_on_gui_input)
@@ -57,5 +64,10 @@ func advance() -> void:
 func _on_gui_input(event: InputEvent) -> void:
 	var is_press: bool = (event is InputEventMouseButton and event.pressed) \
 		or (event is InputEventScreenTouch and event.pressed)
-	if is_press:
+	var is_release: bool = (event is InputEventMouseButton and not event.pressed) \
+		or (event is InputEventScreenTouch and not event.pressed)
+	if is_press and not _awaiting_release:
+		_awaiting_release = true
 		advance()
+	elif is_release:
+		_awaiting_release = false
