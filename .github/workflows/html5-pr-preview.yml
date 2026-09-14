@@ -100,6 +100,59 @@ jobs:
           keep_files: true
           exclude_assets: 'export.log'
 
+      # Every PR preview is deployed to its own pr-<number>/ subdirectory
+      # (via destination_dir above), but nothing ever publishes an
+      # index.html at the Pages site root, so the top-level
+      # https://<owner>.github.io/<repo>/ link 404s. Generate and deploy a
+      # small landing page there listing every open PR's preview so the
+      # root link resolves to something useful instead of a 404.
+      - name: Generate root landing page listing open PR previews
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const { owner, repo } = context.repo;
+            const pulls = await github.paginate(github.rest.pulls.list, {
+              owner,
+              repo,
+              state: 'open',
+              per_page: 100,
+            });
+            const escapeHtml = (str) => str.replace(/[&<>"']/g, (c) => (
+              { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+            ));
+            const items = pulls
+              .sort((a, b) => b.number - a.number)
+              .map((pr) => `      <li><a href="pr-${pr.number}/">PR #${pr.number}: ${escapeHtml(pr.title)}</a></li>`)
+              .join('\n');
+            const html = `<!DOCTYPE html>
+            <html lang="en">
+            <head>
+              <meta charset="utf-8">
+              <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+              <meta http-equiv="Pragma" content="no-cache">
+              <meta http-equiv="Expires" content="0">
+              <title>CampRoguelite HTML5 Previews</title>
+            </head>
+            <body>
+              <h1>CampRoguelite HTML5 Previews</h1>
+              <p>Each open pull request gets its own HTML5 preview build:</p>
+              <ul>
+            ${items || '      <li>No open pull request previews right now.</li>'}
+              </ul>
+            </body>
+            </html>
+            `;
+            fs.mkdirSync('build/root-page', { recursive: true });
+            fs.writeFileSync('build/root-page/index.html', html);
+
+      - name: Deploy root landing page to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: build/root-page
+          keep_files: true
+
       - name: Comment preview link on PR
         uses: actions/github-script@v7
         with:
