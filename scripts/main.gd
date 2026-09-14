@@ -18,6 +18,9 @@ const DEMO_CARD_COLORS: Array[Color] = [
 @onready var card_swiper_demo: Control = $CardSwiperDemo
 @onready var card_swiper: CardSwiper = $CardSwiperDemo/CardSwiper
 @onready var card_swiper_close_button: Button = $CardSwiperDemo/CloseButton
+@onready var selected_card_label: Label = $CardSwiperDemo/SelectedCardLabel
+
+const NO_CARD_SELECTED_TEXT := "Double-tap a card to select it."
 
 func _ready() -> void:
 	var version := str(ProjectSettings.get_setting("application/config/version", "dev"))
@@ -26,6 +29,7 @@ func _ready() -> void:
 	dialogue_box.conversation_finished.connect(_on_conversation_finished)
 	card_swiper_demo_button.pressed.connect(_on_card_swiper_demo_button_pressed)
 	card_swiper_close_button.pressed.connect(_on_card_swiper_close_button_pressed)
+	card_swiper.card_selected.connect(_on_card_swiper_card_selected)
 	_populate_demo_cards()
 
 
@@ -42,12 +46,18 @@ func _on_card_swiper_demo_button_pressed() -> void:
 	start_conversation_button.visible = false
 	card_swiper_demo_button.visible = false
 	card_swiper_demo.visible = true
+	card_swiper.clear_selection()
+	selected_card_label.text = NO_CARD_SELECTED_TEXT
 
 
 func _on_card_swiper_close_button_pressed() -> void:
 	card_swiper_demo.visible = false
 	start_conversation_button.visible = true
 	card_swiper_demo_button.visible = true
+
+
+func _on_card_swiper_card_selected(index: int) -> void:
+	selected_card_label.text = "Selected card index: %d" % index
 
 
 ## Builds a handful of simple colored/labeled cards so the swiper demo has

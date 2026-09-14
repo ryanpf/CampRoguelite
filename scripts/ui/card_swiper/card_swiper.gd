@@ -13,6 +13,9 @@ extends Control
 ## Emitted after a swipe/programmatic transition settles on a new card.
 signal card_changed(index: int)
 
+## Emitted when a card is selected by double-tapping/double-clicking it.
+signal card_selected(index: int)
+
 ## Whether swiping past the last card wraps around to the first (and
 ## swiping before the first wraps to the last). When [code]false[/code], the
 ## swiper stops at the first/last card.
@@ -51,6 +54,19 @@ signal card_changed(index: int)
 ## after [method next]/[method previous]/[method go_to] is called.
 @export var snap_duration: float = 0.25
 
+## Maximum distance, in pixels, a press/release pair may move and still
+## count as a tap (rather than a drag) for double-tap selection purposes.
+@export var tap_max_distance: float = 16.0
+
+## Maximum time, in seconds, between two taps on the same card for them to
+## count as a double-tap that selects that card.
+@export var double_tap_interval: float = 0.35
+
+## Duration, in seconds, of the fade animation played on every card when a
+## card is selected (the selected card fades to fully opaque, the rest fade
+## out).
+@export var select_fade_duration: float = 0.15
+
 @onready var _prev_button: Button = $PrevButton
 @onready var _next_button: Button = $NextButton
 @onready var _dots: HBoxContainer = $Dots
@@ -67,6 +83,21 @@ var _dragging: bool = false
 var _drag_start_x: float = 0.0
 var _position_at_drag_start: float = 0.0
 var _tween: Tween
+
+## Whether a press is currently being tracked, waiting for its matching
+## release. Guards against handling the same physical tap twice: by default
+## Godot's "input_devices/pointing/emulate_mouse_from_touch" project setting
+## makes a single touch also emit a synthetic mouse button event, so a
+## tap/click can otherwise deliver two "pressed"/"released" pairs to
+## [method _on_gui_input].
+var _pointer_down: bool = false
+var _press_position: Vector2 = Vector2.ZERO
+
+## Index (into [member _cards]) of the card selected via double-tap, or
+## [code]-1[/code] if none has been selected (yet, or the deck was reset).
+var _selected_index: int = -1
+var _last_tap_index: int = -1
+var _last_tap_time: float = -1.0
 
 
 func _ready() -> void:
@@ -118,6 +149,7 @@ func clear_cards() -> void:
 		card.queue_free()
 	_cards.clear()
 	_position = 0.0
+	_clear_selection_state()
 
 
 ## Index (into the current deck) of the card that is currently centered.
@@ -125,6 +157,31 @@ func current_index() -> int:
 	if _cards.is_empty():
 		return -1
 	return _wrapi(roundi(_position), _cards.size())
+
+
+## Index (into the current deck) of the card selected via double-tap, or
+## [code]-1[/code] if no card has been selected (yet, or since the deck was
+## last reset).
+func selected_index() -> int:
+	return _selected_index
+
+
+## Clears any current selection, restoring every card to full opacity
+## without animating (e.g. so a demo screen can reset the swiper each time
+## it is reopened).
+func clear_selection() -> void:
+	_clear_selection_state()
+	for card in _cards:
+		card.modulate.a = 1.0
+
+
+## Selects the card at [param index] as if it had been double-tapped:
+## records it as [member selected_index], emits [signal card_selected], and
+## fades out every other card. Out-of-range indices are ignored.
+func select_card(index: int) -> void:
+	if index < 0 or index >= _cards.size():
+		return
+	_select_card(index)
 
 
 ## Advances to the next card, animating the transition unless [param
@@ -189,18 +246,25 @@ func _on_gui_input(event: InputEvent) -> void:
 	if (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT) \
 			or event is InputEventScreenTouch:
 		if event.pressed:
-			_start_drag(event.position.x)
+			if _pointer_down:
+				return
+			_pointer_down = true
+			_start_drag(event.position)
 		else:
-			_end_drag()
+			if not _pointer_down:
+				return
+			_pointer_down = false
+			_end_drag(event.position)
 	elif _dragging and (event is InputEventMouseMotion or event is InputEventScreenDrag):
 		_update_drag(event.relative.x)
 
 
-func _start_drag(x: float) -> void:
+func _start_drag(position: Vector2) -> void:
 	if _tween:
 		_tween.kill()
 	_dragging = true
-	_drag_start_x = x
+	_drag_start_x = position.x
+	_press_position = position
 	_position_at_drag_start = _position
 
 
@@ -214,7 +278,7 @@ func _update_drag(relative_x: float) -> void:
 	_update_positions()
 
 
-func _end_drag() -> void:
+func _end_drag(position: Vector2) -> void:
 	if not _dragging:
 		return
 	_dragging = false
@@ -223,6 +287,57 @@ func _end_drag() -> void:
 	if absf(moved) >= swipe_threshold_ratio:
 		target = roundi(_position_at_drag_start) + (1 if moved > 0.0 else -1)
 	_go_to_position(float(target), true)
+	if (position - _press_position).length() <= tap_max_distance:
+		_handle_tap(position)
+
+
+## Tracks presses that stayed within [member tap_max_distance] of their
+## release, and selects the tapped card (via [method _select_card]) once two
+## such taps land on the same card within [member double_tap_interval].
+func _handle_tap(position: Vector2) -> void:
+	var index := _card_index_at_position(position)
+	if index == -1:
+		_last_tap_index = -1
+		_last_tap_time = -1.0
+		return
+	var now := Time.get_ticks_msec() / 1000.0
+	if _last_tap_index == index and _last_tap_time >= 0.0 and (now - _last_tap_time) <= double_tap_interval:
+		_last_tap_index = -1
+		_last_tap_time = -1.0
+		_select_card(index)
+	else:
+		_last_tap_index = index
+		_last_tap_time = now
+
+
+## Returns the index of the topmost visible card whose rect contains [param
+## position] (in this control's local coordinates), or [code]-1[/code] if
+## none does.
+func _card_index_at_position(position: Vector2) -> int:
+	for i in _cards.size():
+		var card := _cards[i]
+		if card.visible and Rect2(card.position, card.size).has_point(position):
+			return i
+	return -1
+
+
+## Selects the card at [param index]: records it as [member selected_index],
+## emits [signal card_selected], and animates every other card fading out
+## while the selected card fades back to fully opaque (in case it, or
+## others, were left faded from a previous selection).
+func _select_card(index: int) -> void:
+	_selected_index = index
+	for i in _cards.size():
+		var card := _cards[i]
+		var target_alpha := 1.0 if i == index else 0.0
+		create_tween().tween_property(card, "modulate:a", target_alpha, select_fade_duration)
+	card_selected.emit(index)
+
+
+func _clear_selection_state() -> void:
+	_selected_index = -1
+	_last_tap_index = -1
+	_last_tap_time = -1.0
 
 
 func _update_positions() -> void:

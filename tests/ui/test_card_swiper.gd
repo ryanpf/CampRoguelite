@@ -84,6 +84,35 @@ func _initialize() -> void:
 	if not next_card.visible:
 		failures.append("Expected the next card to peek in and be visible next to the focused card")
 
+	# Double-tapping the focused card (positioned at focused_card.position,
+	# centered within its slot) should select it, fade out every other
+	# card, and report its index via both the signal and selected_index().
+	swiper.select_fade_duration = 0.0
+	var selected_signal_values: Array[int] = []
+	swiper.card_selected.connect(func(index: int) -> void: selected_signal_values.append(index))
+	var tap_position: Vector2 = focused_card.position + focused_card.size * 0.5
+	_simulate_double_tap(swiper, tap_position)
+	await process_frame
+	await process_frame
+
+	if swiper.selected_index() != 0:
+		failures.append("Expected double-tapping card 0 to select it, got selected_index() = %d" % swiper.selected_index())
+	if selected_signal_values != [0]:
+		failures.append("Expected card_selected to emit once with index 0, got %s" % [selected_signal_values])
+	if not is_equal_approx(focused_card.modulate.a, 1.0):
+		failures.append("Expected the selected card to stay fully opaque, got alpha %f" % focused_card.modulate.a)
+	if not is_equal_approx(next_card.modulate.a, 0.0):
+		failures.append("Expected other cards to fade out after a selection, got alpha %f" % next_card.modulate.a)
+
+	# A single tap (no second tap within the double-tap interval) should not
+	# select anything.
+	swiper.clear_selection()
+	selected_signal_values.clear()
+	_simulate_tap(swiper, tap_position)
+	await process_frame
+	if swiper.selected_index() != -1:
+		failures.append("Expected a single tap not to select a card, got selected_index() = %d" % swiper.selected_index())
+
 	if failures.is_empty():
 		print("PASS: card swiper starts on the first card and wraps in both directions.")
 		quit(0)
@@ -91,3 +120,39 @@ func _initialize() -> void:
 		for failure in failures:
 			printerr("FAIL: %s" % failure)
 		quit(1)
+
+
+## Simulates a single physical tap/click at [param position] by delivering
+## both an [InputEventScreenTouch] and a synthetic [InputEventMouseButton]
+## press (followed by their releases), mirroring what Godot's default
+## "input_devices/pointing/emulate_mouse_from_touch" project setting does
+## for a real tap on a touch-capable device. [param swiper] must not treat
+## the duplicate pair as two separate taps.
+func _simulate_tap(swiper: Control, position: Vector2) -> void:
+	var touch_press := InputEventScreenTouch.new()
+	touch_press.pressed = true
+	touch_press.position = position
+	swiper._on_gui_input(touch_press)
+
+	var mouse_press := InputEventMouseButton.new()
+	mouse_press.button_index = MOUSE_BUTTON_LEFT
+	mouse_press.pressed = true
+	mouse_press.position = position
+	swiper._on_gui_input(mouse_press)
+
+	var touch_release := InputEventScreenTouch.new()
+	touch_release.pressed = false
+	touch_release.position = position
+	swiper._on_gui_input(touch_release)
+
+	var mouse_release := InputEventMouseButton.new()
+	mouse_release.button_index = MOUSE_BUTTON_LEFT
+	mouse_release.pressed = false
+	mouse_release.position = position
+	swiper._on_gui_input(mouse_release)
+
+
+## Simulates two quick taps at [param position], as a double-tap gesture.
+func _simulate_double_tap(swiper: Control, position: Vector2) -> void:
+	_simulate_tap(swiper, position)
+	_simulate_tap(swiper, position)
