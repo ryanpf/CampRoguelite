@@ -4,15 +4,20 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
+  pages: write
+  id-token: write
 
+# Only one deployment at a time: GitHub Pages (Actions source) serves a
+# single site, so a build from one PR would otherwise overwrite another's
+# in-flight deployment.
 concurrency:
-  group: html5-pr-preview-${{ github.event.pull_request.number }}
+  group: html5-pr-preview
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
     container:
       image: barichello/godot-ci:4.2.2
@@ -91,14 +96,31 @@ jobs:
           BUILD_INFO_HTML="<a id=\"build-info\" href=\"${COMMIT_URL}\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"position:fixed;bottom:4px;right:6px;font:11px monospace;color:#ccc;background:rgba(0,0,0,0.6);padding:2px 6px;border-radius:4px;z-index:9999;text-decoration:none;\">${BUILD_VERSION}</a>"
           sed -i "s@<body>@<body>\n\t\t${BUILD_INFO_HTML}@" "$INDEX"
 
-      - name: Deploy PR preview to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Upload export log artifact
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: build/web
-          destination_dir: pr-${{ github.event.pull_request.number }}
-          keep_files: true
-          exclude_assets: 'export.log'
+          name: CampRoguelite-html5-export-log
+          path: build/web/export.log
+
+      - name: Remove export log from Pages artifact
+        run: rm -f build/web/export.log
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
 
       # Every PR preview is deployed to its own pr-<number>/ subdirectory
       # (via destination_dir above), but nothing ever publishes an
@@ -158,7 +180,7 @@ jobs:
         with:
           script: |
             const { owner, repo } = context.repo;
-            const url = `https://${owner}.github.io/${repo}/pr-${context.payload.pull_request.number}/`;
+            const url = '${{ steps.deployment.outputs.page_url }}';
             const body = `🎮 HTML5 preview build deployed: ${url}`;
             const { data: comments } = await github.rest.issues.listComments({
               owner,
@@ -171,10 +193,3 @@ jobs:
             } else {
               await github.rest.issues.createComment({ owner, repo, issue_number: context.payload.pull_request.number, body });
             }
-
-      - name: Upload export log artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: CampRoguelite-html5-export-log
-          path: build/web/export.log
