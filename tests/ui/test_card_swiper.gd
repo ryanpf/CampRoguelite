@@ -113,6 +113,29 @@ func _initialize() -> void:
 	if swiper.selected_index() != -1:
 		failures.append("Expected a single tap not to select a card, got selected_index() = %d" % swiper.selected_index())
 
+	# A single drag that crosses several cards' worth of distance should be
+	# able to cycle through more than one card at once, rather than only
+	# ever moving to the immediate neighbor.
+	var far_target: int = swiper._resolve_swipe_target(2.5, 0.0, 0.0)
+	if far_target != 3:
+		failures.append("Expected a 2.5-card-wide drag to target card 3, got %d" % far_target)
+
+	# A fast flick that only physically crosses a fraction of a single
+	# card's width should still register as a swipe (matching the swipe's
+	# momentum) even though the raw distance dragged is well under the
+	# configured swipe_threshold_ratio.
+	var flick_target: int = swiper._resolve_swipe_target(0.1, 0.0, 20.0)
+	if flick_target == 0:
+		failures.append(
+			"Expected a fast flick to advance past card 0 even with a short drag distance, got %d" % flick_target
+		)
+
+	# A slow drag that stays well under the threshold, with negligible
+	# velocity, should snap back to the starting card instead of advancing.
+	var snap_back_target: int = swiper._resolve_swipe_target(0.1, 0.0, 0.0)
+	if snap_back_target != 0:
+		failures.append("Expected a short, slow drag to snap back to card 0, got %d" % snap_back_target)
+
 	if failures.is_empty():
 		print("PASS: card swiper starts on the first card and wraps in both directions.")
 		quit(0)
