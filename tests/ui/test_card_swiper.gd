@@ -62,6 +62,28 @@ func _initialize() -> void:
 	if swiper.current_index() != 2:
 		failures.append("Expected go_to(2) to land on card 2, got %d" % swiper.current_index())
 
+	# Cards should be scaled down to card_scale of the swiper's own size and
+	# centered on the focused card, so that neighboring cards peek in on
+	# either side rather than being fully off-screen.
+	swiper.go_to(0, false)
+	swiper.size = Vector2(400, 200)
+	swiper.card_scale = 0.25
+	await process_frame
+	var focused_card: Control = cards[0]
+	var expected_card_size: Vector2 = swiper.size * 0.25
+	if not focused_card.size.is_equal_approx(expected_card_size):
+		failures.append(
+			"Expected focused card size %s, got %s" % [expected_card_size, focused_card.size]
+		)
+	var expected_offset: Vector2 = (swiper.size - expected_card_size) * 0.5
+	if not focused_card.position.is_equal_approx(expected_offset):
+		failures.append(
+			"Expected focused card to be centered at %s, got %s" % [expected_offset, focused_card.position]
+		)
+	var next_card: Control = cards[1]
+	if not next_card.visible:
+		failures.append("Expected the next card to peek in and be visible next to the focused card")
+
 	if failures.is_empty():
 		print("PASS: card swiper starts on the first card and wraps in both directions.")
 		quit(0)

@@ -32,9 +32,20 @@ signal card_changed(index: int)
 		if is_node_ready():
 			_dots.visible = value
 
-## Fraction of the swiper's width a drag must cross before it counts as a
-## swipe to the next/previous card rather than snapping back.
+## Fraction of a card's width a drag must cross before it counts as a swipe
+## to the next/previous card rather than snapping back.
 @export_range(0.05, 0.9, 0.05) var swipe_threshold_ratio: float = 0.25
+
+## Fraction of the swiper's own size that each card is rendered at (e.g.
+## [code]0.25[/code] renders cards at a quarter of the swiper's width/height,
+## centered within their slot). Cards are packed edge-to-edge at this
+## reduced size, so the focused card sits in the middle with parts of its
+## neighbors peeking in on either side.
+@export_range(0.05, 1.0, 0.05) var card_scale: float = 0.25:
+	set(value):
+		card_scale = value
+		if is_node_ready():
+			_update_positions()
 
 ## Duration, in seconds, of the snap animation played after a drag ends or
 ## after [method next]/[method previous]/[method go_to] is called.
@@ -194,10 +205,10 @@ func _start_drag(x: float) -> void:
 
 
 func _update_drag(relative_x: float) -> void:
-	var width := size.x
-	if width <= 0.0:
+	var step := _card_step()
+	if step <= 0.0:
 		return
-	_position -= relative_x / width
+	_position -= relative_x / step
 	if not wrap:
 		_position = clampf(_position, 0.0, float(_cards.size() - 1))
 	_update_positions()
@@ -215,13 +226,23 @@ func _end_drag() -> void:
 
 
 func _update_positions() -> void:
-	var width := size.x
+	var card_size := size * clampf(card_scale, 0.05, 1.0)
+	var offset := (size - card_size) * 0.5
+	var step := card_size.x
 	for i in _cards.size():
 		var card := _cards[i]
 		var delta := _wrapped_delta(i, _position) if wrap else float(i) - _position
-		card.position = Vector2(delta * width, 0.0)
-		card.size = size
-		card.visible = absf(delta) <= 1.5
+		var left := delta * step + offset.x
+		card.position = Vector2(left, offset.y)
+		card.size = card_size
+		card.visible = left + card_size.x > 0.0 and left < size.x
+
+
+## Current width, in pixels, of a single card slot (i.e. [member card_scale]
+## of the swiper's own width). Used to convert drag distances into
+## fractional card-index movement.
+func _card_step() -> float:
+	return size.x * clampf(card_scale, 0.05, 1.0)
 
 
 func _update_nav_buttons() -> void:
