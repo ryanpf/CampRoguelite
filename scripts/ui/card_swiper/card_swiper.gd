@@ -44,7 +44,7 @@ signal card_selected(index: int)
 ## centered within their slot). This only controls each card's visual size;
 ## how far apart card slots are positioned is controlled independently by
 ## [member card_step] and [member card_spacing].
-@export_range(0.05, 1.0, 0.05) var card_scale: float = 0.8:
+@export_range(0.05, 1.0, 0.05) var card_scale: float = 0.5:
 	set(value):
 		card_scale = value
 		if is_node_ready():
@@ -65,7 +65,9 @@ signal card_selected(index: int)
 ## Gap, in pixels, added on top of the [member card_step]-based distance
 ## between adjacent card slots, matching the clear separation between cards
 ## in Android's Recents/Overview panel rather than packing them edge-to-edge.
-@export_range(0.0, 128.0, 1.0) var card_spacing: float = 24.0:
+## Negative values pull adjacent card slots closer together (letting them
+## overlap the focused card) rather than spreading them further apart.
+@export_range(-100.0, 128.0, 1.0) var card_spacing: float = -50.0:
 	set(value):
 		card_spacing = value
 		if is_node_ready():
@@ -76,7 +78,7 @@ signal card_selected(index: int)
 ## card_step]/[member card_scale]/[member card_spacing] layout. Smaller
 ## values make swipes more sensitive (a shorter drag moves further through
 ## the deck); larger values require a longer drag per card.
-@export_range(0.05, 2.0, 0.05) var swipe_distance_ratio: float = 0.8
+@export_range(0.05, 2.0, 0.05) var swipe_distance_ratio: float = 1.4
 
 ## Duration, in seconds, of the snap animation played after a drag ends or
 ## after [method next]/[method previous]/[method go_to] is called. Acts as
