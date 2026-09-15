@@ -68,6 +68,8 @@ func _initialize() -> void:
 	swiper.go_to(0, false)
 	swiper.size = Vector2(400, 200)
 	swiper.card_scale = 0.25
+	swiper.card_step = 0.25
+	swiper.card_spacing = 0.0
 	await process_frame
 	var focused_card: Control = cards[0]
 	var expected_card_size: Vector2 = swiper.size * 0.25
@@ -83,6 +85,78 @@ func _initialize() -> void:
 	var next_card: Control = cards[1]
 	if not next_card.visible:
 		failures.append("Expected the next card to peek in and be visible next to the focused card")
+
+	# card_spacing should push neighboring card slots further apart (in
+	# addition to card_step sizing) without moving the focused card itself,
+	# matching the visible gap between cards in Android's Recents panel
+	# rather than packing them edge-to-edge.
+	swiper.card_spacing = 40.0
+	await process_frame
+	if not focused_card.position.is_equal_approx(expected_offset):
+		failures.append(
+			"Expected card_spacing not to move the focused card, got %s" % [focused_card.position]
+		)
+	var expected_next_left: float = expected_card_size.x + 40.0 + expected_offset.x
+	if not is_equal_approx(next_card.position.x, expected_next_left):
+		failures.append(
+			"Expected card_spacing to push the next card to x=%f, got %f" % [expected_next_left, next_card.position.x]
+		)
+	swiper.card_spacing = 0.0
+	await process_frame
+
+	# card_step should control the distance between card slots independently
+	# of card_scale, so neighboring cards can be made to overlap the focused
+	# card (step smaller than the card's own size) without changing the
+	# focused card's size or position.
+	swiper.card_scale = 0.5
+	swiper.card_step = 0.25
+	await process_frame
+	var overlapping_card_size: Vector2 = swiper.size * 0.5
+	var overlapping_offset: Vector2 = (swiper.size - overlapping_card_size) * 0.5
+	if not focused_card.size.is_equal_approx(overlapping_card_size):
+		failures.append(
+			"Expected card_scale to still control the focused card's size, got %s" % [focused_card.size]
+		)
+	if not focused_card.position.is_equal_approx(overlapping_offset):
+		failures.append(
+			"Expected card_step not to move the focused card, got %s" % [focused_card.position]
+		)
+	var expected_overlap_next_left: float = swiper.size.x * 0.25 + overlapping_offset.x
+	if not is_equal_approx(next_card.position.x, expected_overlap_next_left):
+		failures.append(
+			"Expected card_step to position the next card at x=%f independent of card_scale, got %f" \
+				% [expected_overlap_next_left, next_card.position.x]
+		)
+	swiper.card_scale = 0.25
+	swiper.card_step = 0.25
+	await process_frame
+
+	# swipe_distance_ratio should control how much drag distance moves the
+	# deck, independent of card_step's layout spacing, so the swipe "feel"
+	# can be tuned without affecting where cards are positioned.
+	swiper.card_step = 0.25
+	swiper.swipe_distance_ratio = 0.5
+	swiper._start_drag(Vector2.ZERO)
+	swiper._update_drag(-swiper.size.x * 0.5)
+	var half_ratio_position: float = swiper._position
+	if not is_equal_approx(half_ratio_position, 1.0):
+		failures.append(
+			"Expected dragging swipe_distance_ratio's worth of pixels to move exactly one card, got position %f" \
+				% half_ratio_position
+		)
+	swiper.go_to(0, false)
+	swiper.swipe_distance_ratio = 0.25
+	swiper._start_drag(Vector2.ZERO)
+	swiper._update_drag(-swiper.size.x * 0.5)
+	var quarter_ratio_position: float = swiper._position
+	if not is_equal_approx(quarter_ratio_position, 2.0):
+		failures.append(
+			"Expected a smaller swipe_distance_ratio to make the same drag move further (independent of card_step), got position %f" \
+				% quarter_ratio_position
+		)
+	swiper.go_to(0, false)
+	swiper.swipe_distance_ratio = 0.25
+	await process_frame
 
 	# Double-tapping the focused card (positioned at focused_card.position,
 	# centered within its slot) should select it, fade out every other
@@ -112,6 +186,29 @@ func _initialize() -> void:
 	await process_frame
 	if swiper.selected_index() != -1:
 		failures.append("Expected a single tap not to select a card, got selected_index() = %d" % swiper.selected_index())
+
+	# A single drag that crosses several cards' worth of distance should be
+	# able to cycle through more than one card at once, rather than only
+	# ever moving to the immediate neighbor.
+	var far_target: int = swiper._resolve_swipe_target(2.5, 0.0, 0.0)
+	if far_target != 3:
+		failures.append("Expected a 2.5-card-wide drag to target card 3, got %d" % far_target)
+
+	# A fast flick that only physically crosses a fraction of a single
+	# card's width should still register as a swipe (matching the swipe's
+	# momentum) even though the raw distance dragged is well under the
+	# configured swipe_threshold_ratio.
+	var flick_target: int = swiper._resolve_swipe_target(0.1, 0.0, 20.0)
+	if flick_target == 0:
+		failures.append(
+			"Expected a fast flick to advance past card 0 even with a short drag distance, got %d" % flick_target
+		)
+
+	# A slow drag that stays well under the threshold, with negligible
+	# velocity, should snap back to the starting card instead of advancing.
+	var snap_back_target: int = swiper._resolve_swipe_target(0.1, 0.0, 0.0)
+	if snap_back_target != 0:
+		failures.append("Expected a short, slow drag to snap back to card 0, got %d" % snap_back_target)
 
 	if failures.is_empty():
 		print("PASS: card swiper starts on the first card and wraps in both directions.")

@@ -19,6 +19,12 @@ const DEMO_CARD_COLORS: Array[Color] = [
 @onready var card_swiper: CardSwiper = $CardSwiperDemo/CardSwiper
 @onready var card_swiper_close_button: Button = $CardSwiperDemo/CloseButton
 @onready var selected_card_label: Label = $CardSwiperDemo/SelectedCardLabel
+@onready var card_scale_slider: HSlider = $CardSwiperDemo/ControlsPanel/CardScaleRow/CardScaleSlider
+@onready var card_scale_value_label: Label = $CardSwiperDemo/ControlsPanel/CardScaleRow/CardScaleValueLabel
+@onready var swipe_distance_slider: HSlider = $CardSwiperDemo/ControlsPanel/SwipeDistanceRow/SwipeDistanceSlider
+@onready var swipe_distance_value_label: Label = $CardSwiperDemo/ControlsPanel/SwipeDistanceRow/SwipeDistanceValueLabel
+@onready var card_spacing_slider: HSlider = $CardSwiperDemo/ControlsPanel/CardSpacingRow/CardSpacingSlider
+@onready var card_spacing_value_label: Label = $CardSwiperDemo/ControlsPanel/CardSpacingRow/CardSpacingValueLabel
 
 const NO_CARD_SELECTED_TEXT := "Double-tap a card to select it."
 
@@ -30,6 +36,15 @@ func _ready() -> void:
 	card_swiper_demo_button.pressed.connect(_on_card_swiper_demo_button_pressed)
 	card_swiper_close_button.pressed.connect(_on_card_swiper_close_button_pressed)
 	card_swiper.card_selected.connect(_on_card_swiper_card_selected)
+	card_scale_slider.value = card_swiper.card_scale
+	swipe_distance_slider.value = card_swiper.swipe_distance_ratio
+	card_spacing_slider.value = card_swiper.card_spacing
+	card_scale_value_label.text = "%.2f" % card_swiper.card_scale
+	swipe_distance_value_label.text = "%.2f" % card_swiper.swipe_distance_ratio
+	card_spacing_value_label.text = "%.0f" % card_swiper.card_spacing
+	card_scale_slider.value_changed.connect(_on_card_scale_slider_value_changed)
+	swipe_distance_slider.value_changed.connect(_on_swipe_distance_slider_value_changed)
+	card_spacing_slider.value_changed.connect(_on_card_spacing_slider_value_changed)
 	_populate_demo_cards()
 
 
@@ -58,6 +73,21 @@ func _on_card_swiper_close_button_pressed() -> void:
 
 func _on_card_swiper_card_selected(index: int) -> void:
 	selected_card_label.text = "Selected card index: %d" % index
+
+
+func _on_card_scale_slider_value_changed(value: float) -> void:
+	card_swiper.card_scale = value
+	card_scale_value_label.text = "%.2f" % value
+
+
+func _on_swipe_distance_slider_value_changed(value: float) -> void:
+	card_swiper.swipe_distance_ratio = value
+	swipe_distance_value_label.text = "%.2f" % value
+
+
+func _on_card_spacing_slider_value_changed(value: float) -> void:
+	card_swiper.card_spacing = value
+	card_spacing_value_label.text = "%.0f" % value
 
 
 ## Builds a handful of simple colored/labeled cards so the swiper demo has
