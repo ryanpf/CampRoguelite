@@ -68,6 +68,7 @@ func _initialize() -> void:
 	swiper.go_to(0, false)
 	swiper.size = Vector2(400, 200)
 	swiper.card_scale = 0.25
+	swiper.card_step = 0.25
 	swiper.card_spacing = 0.0
 	await process_frame
 	var focused_card: Control = cards[0]
@@ -86,7 +87,7 @@ func _initialize() -> void:
 		failures.append("Expected the next card to peek in and be visible next to the focused card")
 
 	# card_spacing should push neighboring card slots further apart (in
-	# addition to card_scale sizing) without moving the focused card itself,
+	# addition to card_step sizing) without moving the focused card itself,
 	# matching the visible gap between cards in Android's Recents panel
 	# rather than packing them edge-to-edge.
 	swiper.card_spacing = 40.0
@@ -101,6 +102,33 @@ func _initialize() -> void:
 			"Expected card_spacing to push the next card to x=%f, got %f" % [expected_next_left, next_card.position.x]
 		)
 	swiper.card_spacing = 0.0
+	await process_frame
+
+	# card_step should control the distance between card slots independently
+	# of card_scale, so neighboring cards can be made to overlap the focused
+	# card (step smaller than the card's own size) without changing the
+	# focused card's size or position.
+	swiper.card_scale = 0.5
+	swiper.card_step = 0.25
+	await process_frame
+	var overlapping_card_size: Vector2 = swiper.size * 0.5
+	var overlapping_offset: Vector2 = (swiper.size - overlapping_card_size) * 0.5
+	if not focused_card.size.is_equal_approx(overlapping_card_size):
+		failures.append(
+			"Expected card_scale to still control the focused card's size, got %s" % [focused_card.size]
+		)
+	if not focused_card.position.is_equal_approx(overlapping_offset):
+		failures.append(
+			"Expected card_step not to move the focused card, got %s" % [focused_card.position]
+		)
+	var expected_overlap_next_left: float = swiper.size.x * 0.25 + overlapping_offset.x
+	if not is_equal_approx(next_card.position.x, expected_overlap_next_left):
+		failures.append(
+			"Expected card_step to position the next card at x=%f independent of card_scale, got %f" \
+				% [expected_overlap_next_left, next_card.position.x]
+		)
+	swiper.card_scale = 0.25
+	swiper.card_step = 0.25
 	await process_frame
 
 	# Double-tapping the focused card (positioned at focused_card.position,

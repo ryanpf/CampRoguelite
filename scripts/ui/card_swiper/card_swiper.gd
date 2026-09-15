@@ -41,18 +41,27 @@ signal card_selected(index: int)
 
 ## Fraction of the swiper's own size that each card is rendered at (e.g.
 ## [code]0.25[/code] renders cards at a quarter of the swiper's width/height,
-## centered within their slot). Cards are separated by [member card_spacing]
-## at this size, so the focused card sits large in the middle (matching the
-## look of Android's Recents/Overview panel) with slivers of its neighbors
-## peeking in on either side.
-@export_range(0.05, 1.0, 0.05) var card_scale: float = 0.82:
+## centered within their slot). This only controls each card's visual size;
+## how far apart card slots are positioned is controlled independently by
+## [member card_step] and [member card_spacing].
+@export_range(0.05, 1.0, 0.05) var card_scale: float = 0.8:
 	set(value):
 		card_scale = value
 		if is_node_ready():
 			_update_positions()
 
-## Gap, in pixels, left between adjacent cards' slots (in addition to
-## [member card_scale] sizing), matching the clear separation between cards
+## Fraction of the swiper's own width used as the base distance between
+## adjacent card slots' centers, independent of [member card_scale]. Values
+## smaller than [member card_scale] make neighboring cards overlap the
+## focused one; values larger spread them further apart.
+@export_range(0.05, 1.0, 0.05) var card_step: float = 0.8:
+	set(value):
+		card_step = value
+		if is_node_ready():
+			_update_positions()
+
+## Gap, in pixels, added on top of the [member card_step]-based distance
+## between adjacent card slots, matching the clear separation between cards
 ## in Android's Recents/Overview panel rather than packing them edge-to-edge.
 @export_range(0.0, 128.0, 1.0) var card_spacing: float = 24.0:
 	set(value):
@@ -428,7 +437,7 @@ func _clear_selection_state() -> void:
 func _update_positions() -> void:
 	var card_size := size * clampf(card_scale, 0.05, 1.0)
 	var offset := (size - card_size) * 0.5
-	var step := card_size.x + card_spacing
+	var step := _card_step()
 	for i in _cards.size():
 		var card := _cards[i]
 		var delta := _wrapped_delta(i, _position) if wrap else float(i) - _position
@@ -438,12 +447,12 @@ func _update_positions() -> void:
 		card.visible = left + card_size.x > 0.0 and left < size.x
 
 
-## Current width, in pixels, of a single card slot (i.e. [member card_scale]
-## of the swiper's own width, plus [member card_spacing]). Used to convert
-## drag distances into fractional card-index movement so a drag tracks the
-## finger 1:1.
+## Current distance, in pixels, between adjacent card slots (i.e. [member
+## card_step] of the swiper's own width, plus [member card_spacing]). Used
+## both to lay out cards and to convert drag distances into fractional
+## card-index movement so a drag tracks the finger 1:1.
 func _card_step() -> float:
-	return size.x * clampf(card_scale, 0.05, 1.0) + card_spacing
+	return size.x * clampf(card_step, 0.05, 1.0) + card_spacing
 
 
 func _update_nav_buttons() -> void:
