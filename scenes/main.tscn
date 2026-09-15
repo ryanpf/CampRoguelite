@@ -129,7 +129,7 @@ text = "Swipe Distance"
 layout_mode = 2
 size_flags_horizontal = 3
 min_value = 0.05
-max_value = 1.0
+max_value = 2.0
 step = 0.05
 value = 0.8
 

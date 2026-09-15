@@ -76,7 +76,7 @@ signal card_selected(index: int)
 ## card_step]/[member card_scale]/[member card_spacing] layout. Smaller
 ## values make swipes more sensitive (a shorter drag moves further through
 ## the deck); larger values require a longer drag per card.
-@export_range(0.05, 1.0, 0.05) var swipe_distance_ratio: float = 0.8
+@export_range(0.05, 2.0, 0.05) var swipe_distance_ratio: float = 0.8
 
 ## Duration, in seconds, of the snap animation played after a drag ends or
 ## after [method next]/[method previous]/[method go_to] is called. Acts as
@@ -466,7 +466,7 @@ func _card_step() -> float:
 ## Current distance, in pixels, the finger/pointer must travel to move the
 ## deck by one full card while dragging (see [member swipe_distance_ratio]).
 func _swipe_distance() -> float:
-	return size.x * clampf(swipe_distance_ratio, 0.05, 1.0)
+	return size.x * clampf(swipe_distance_ratio, 0.05, 2.0)
 
 
 func _update_nav_buttons() -> void:
