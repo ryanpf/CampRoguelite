@@ -53,7 +53,9 @@ signal card_selected(index: int)
 ## Fraction of the swiper's own width used as the base distance between
 ## adjacent card slots' centers, independent of [member card_scale]. Values
 ## smaller than [member card_scale] make neighboring cards overlap the
-## focused one; values larger spread them further apart.
+## focused one; values larger spread them further apart. This only affects
+## layout; how far you must drag to move between cards is controlled
+## independently by [member swipe_distance_ratio].
 @export_range(0.05, 1.0, 0.05) var card_step: float = 0.8:
 	set(value):
 		card_step = value
@@ -68,6 +70,13 @@ signal card_selected(index: int)
 		card_spacing = value
 		if is_node_ready():
 			_update_positions()
+
+## Fraction of the swiper's own width the finger/pointer must travel to move
+## the deck by one full card while dragging, independent of [member
+## card_step]/[member card_scale]/[member card_spacing] layout. Smaller
+## values make swipes more sensitive (a shorter drag moves further through
+## the deck); larger values require a longer drag per card.
+@export_range(0.05, 1.0, 0.05) var swipe_distance_ratio: float = 0.8
 
 ## Duration, in seconds, of the snap animation played after a drag ends or
 ## after [method next]/[method previous]/[method go_to] is called. Acts as
@@ -329,7 +338,7 @@ func _start_drag(position: Vector2) -> void:
 
 
 func _update_drag(relative_x: float) -> void:
-	var step := _card_step()
+	var step := _swipe_distance()
 	if step <= 0.0:
 		return
 	var delta := -relative_x / step
@@ -449,10 +458,15 @@ func _update_positions() -> void:
 
 ## Current distance, in pixels, between adjacent card slots (i.e. [member
 ## card_step] of the swiper's own width, plus [member card_spacing]). Used
-## both to lay out cards and to convert drag distances into fractional
-## card-index movement so a drag tracks the finger 1:1.
+## to lay out cards.
 func _card_step() -> float:
 	return size.x * clampf(card_step, 0.05, 1.0) + card_spacing
+
+
+## Current distance, in pixels, the finger/pointer must travel to move the
+## deck by one full card while dragging (see [member swipe_distance_ratio]).
+func _swipe_distance() -> float:
+	return size.x * clampf(swipe_distance_ratio, 0.05, 1.0)
 
 
 func _update_nav_buttons() -> void:

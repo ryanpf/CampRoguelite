@@ -131,6 +131,33 @@ func _initialize() -> void:
 	swiper.card_step = 0.25
 	await process_frame
 
+	# swipe_distance_ratio should control how much drag distance moves the
+	# deck, independent of card_step's layout spacing, so the swipe "feel"
+	# can be tuned without affecting where cards are positioned.
+	swiper.card_step = 0.25
+	swiper.swipe_distance_ratio = 0.5
+	swiper._start_drag(Vector2.ZERO)
+	swiper._update_drag(-swiper.size.x * 0.5)
+	var half_ratio_position: float = swiper._position
+	if not is_equal_approx(half_ratio_position, 1.0):
+		failures.append(
+			"Expected dragging swipe_distance_ratio's worth of pixels to move exactly one card, got position %f" \
+				% half_ratio_position
+		)
+	swiper.go_to(0, false)
+	swiper.swipe_distance_ratio = 0.25
+	swiper._start_drag(Vector2.ZERO)
+	swiper._update_drag(-swiper.size.x * 0.5)
+	var quarter_ratio_position: float = swiper._position
+	if not is_equal_approx(quarter_ratio_position, 2.0):
+		failures.append(
+			"Expected a smaller swipe_distance_ratio to make the same drag move further (independent of card_step), got position %f" \
+				% quarter_ratio_position
+		)
+	swiper.go_to(0, false)
+	swiper.swipe_distance_ratio = 0.25
+	await process_frame
+
 	# Double-tapping the focused card (positioned at focused_card.position,
 	# centered within its slot) should select it, fade out every other
 	# card, and report its index via both the signal and selected_index().
