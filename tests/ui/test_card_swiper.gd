@@ -136,17 +136,6 @@ func _initialize() -> void:
 	if snap_back_target != 0:
 		failures.append("Expected a short, slow drag to snap back to card 0, got %d" % snap_back_target)
 
-	# Momentum from a fast release must never carry the swipe further than
-	# where the finger actually dragged to: once the raw distance has
-	# already crossed into another card, high velocity should not push the
-	# target any further past it.
-	var no_overshoot_target: int = swiper._resolve_swipe_target(1.4, 0.0, 20.0)
-	if no_overshoot_target != 1:
-		failures.append(
-			"Expected momentum not to carry the swipe past the card the finger reached, got %d" \
-				% no_overshoot_target
-		)
-
 	if failures.is_empty():
 		print("PASS: card swiper starts on the first card and wraps in both directions.")
 		quit(0)

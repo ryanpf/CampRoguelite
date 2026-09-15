@@ -64,12 +64,10 @@ signal card_selected(index: int)
 ## abruptly slowing down.
 @export var min_snap_duration: float = 0.08
 
-## How many seconds' worth of release velocity to project forward when a
-## drag's raw distance alone didn't cross a full card boundary. Higher
-## values let a fast, short flick still trigger a single-card swipe (as if
-## its momentum carried it just past [member swipe_threshold_ratio]); it
-## never adds extra distance once the drag itself has already crossed into
-## another card, so a swipe never travels further than the finger did.
+## How many seconds' worth of release velocity to project forward when
+## deciding where a flick lands. Higher values make fast flicks carry
+## further past the card(s) the finger physically crossed, mimicking
+## momentum/inertia.
 @export var momentum_projection_seconds: float = 0.15
 
 ## Maximum distance, in pixels, a press/release pair may move and still
@@ -347,22 +345,21 @@ func _end_drag(position: Vector2) -> void:
 ## position it started from ([param start_position]), and the smoothed
 ## release velocity ([param velocity], in card-widths per second).
 ##
-## The target always lands on the nearest card to [param current_position]
-## first, i.e. it never travels further than the finger actually dragged.
-## [param velocity] only comes into play when the raw drag distance alone is
-## inconclusive (it stayed on the starting card): a fast flick can then still
-## tip a short/slow-looking drag into a single-card swipe, as if its
-## momentum carried it just past the threshold, without ever skipping extra
-## cards beyond the one the finger crossed into.
+## Projecting [param velocity] forward by [member momentum_projection_seconds]
+## lets a fast flick carry the swipe further than the finger actually
+## travelled (potentially past several cards at once, and even trigger a
+## swipe when the raw drag distance alone is under [member
+## swipe_threshold_ratio]), matching how far the drag's momentum would
+## naturally carry it.
 func _resolve_swipe_target(current_position: float, start_position: float, velocity: float) -> int:
+	var momentum := velocity * momentum_projection_seconds
 	var start_index := roundi(start_position)
-	var target := roundi(current_position)
+	var target := roundi(current_position + momentum)
 	if target == start_index:
-		# The raw drag distance alone didn't cross a full card boundary;
-		# fall back to the configurable threshold, augmented by the
-		# release velocity's momentum, so a fast flick can still trigger a
-		# single-card swipe even when the finger barely moved.
-		var momentum := velocity * momentum_projection_seconds
+		# The projected settle position is still on the starting card,
+		# meaning neither the drag distance nor its momentum crossed a full
+		# card boundary; fall back to the configurable threshold so small,
+		# slow drags/flicks can still trigger a single-card swipe.
 		var effective_moved := (current_position - start_position) + momentum
 		if absf(effective_moved) >= swipe_threshold_ratio:
 			target = start_index + (1 if effective_moved > 0.0 else -1)
