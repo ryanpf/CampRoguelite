@@ -150,15 +150,15 @@ text = "Card Spacing"
 [node name="CardSpacingSlider" type="HSlider" parent="CardSwiperDemo/ControlsPanel/CardSpacingRow"]
 layout_mode = 2
 size_flags_horizontal = 3
-min_value = -100.0
+min_value = -300.0
 max_value = 128.0
 step = 1.0
-value = -50.0
+value = -150.0
 
 [node name="CardSpacingValueLabel" type="Label" parent="CardSwiperDemo/ControlsPanel/CardSpacingRow"]
 layout_mode = 2
 custom_minimum_size = Vector2(48, 0)
-text = "-50"
+text = "-150"
 
 [node name="SelectedCardLabel" type="Label" parent="CardSwiperDemo"]
 layout_mode = 1

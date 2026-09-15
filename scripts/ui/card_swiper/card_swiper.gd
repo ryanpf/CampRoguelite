@@ -67,7 +67,7 @@ signal card_selected(index: int)
 ## in Android's Recents/Overview panel rather than packing them edge-to-edge.
 ## Negative values pull adjacent card slots closer together (letting them
 ## overlap the focused card) rather than spreading them further apart.
-@export_range(-100.0, 128.0, 1.0) var card_spacing: float = -50.0:
+@export_range(-300.0, 128.0, 1.0) var card_spacing: float = -150.0:
 	set(value):
 		card_spacing = value
 		if is_node_ready():
