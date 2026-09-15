@@ -41,12 +41,22 @@ signal card_selected(index: int)
 
 ## Fraction of the swiper's own size that each card is rendered at (e.g.
 ## [code]0.25[/code] renders cards at a quarter of the swiper's width/height,
-## centered within their slot). Cards are packed edge-to-edge at this
-## reduced size, so the focused card sits in the middle with parts of its
-## neighbors peeking in on either side.
-@export_range(0.05, 1.0, 0.05) var card_scale: float = 0.25:
+## centered within their slot). Cards are separated by [member card_spacing]
+## at this size, so the focused card sits large in the middle (matching the
+## look of Android's Recents/Overview panel) with slivers of its neighbors
+## peeking in on either side.
+@export_range(0.05, 1.0, 0.05) var card_scale: float = 0.82:
 	set(value):
 		card_scale = value
+		if is_node_ready():
+			_update_positions()
+
+## Gap, in pixels, left between adjacent cards' slots (in addition to
+## [member card_scale] sizing), matching the clear separation between cards
+## in Android's Recents/Overview panel rather than packing them edge-to-edge.
+@export_range(0.0, 128.0, 1.0) var card_spacing: float = 24.0:
+	set(value):
+		card_spacing = value
 		if is_node_ready():
 			_update_positions()
 
@@ -418,7 +428,7 @@ func _clear_selection_state() -> void:
 func _update_positions() -> void:
 	var card_size := size * clampf(card_scale, 0.05, 1.0)
 	var offset := (size - card_size) * 0.5
-	var step := card_size.x
+	var step := card_size.x + card_spacing
 	for i in _cards.size():
 		var card := _cards[i]
 		var delta := _wrapped_delta(i, _position) if wrap else float(i) - _position
@@ -429,10 +439,11 @@ func _update_positions() -> void:
 
 
 ## Current width, in pixels, of a single card slot (i.e. [member card_scale]
-## of the swiper's own width). Used to convert drag distances into
-## fractional card-index movement.
+## of the swiper's own width, plus [member card_spacing]). Used to convert
+## drag distances into fractional card-index movement so a drag tracks the
+## finger 1:1.
 func _card_step() -> float:
-	return size.x * clampf(card_scale, 0.05, 1.0)
+	return size.x * clampf(card_scale, 0.05, 1.0) + card_spacing
 
 
 func _update_nav_buttons() -> void:

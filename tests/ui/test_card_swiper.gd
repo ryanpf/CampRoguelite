@@ -68,6 +68,7 @@ func _initialize() -> void:
 	swiper.go_to(0, false)
 	swiper.size = Vector2(400, 200)
 	swiper.card_scale = 0.25
+	swiper.card_spacing = 0.0
 	await process_frame
 	var focused_card: Control = cards[0]
 	var expected_card_size: Vector2 = swiper.size * 0.25
@@ -83,6 +84,24 @@ func _initialize() -> void:
 	var next_card: Control = cards[1]
 	if not next_card.visible:
 		failures.append("Expected the next card to peek in and be visible next to the focused card")
+
+	# card_spacing should push neighboring card slots further apart (in
+	# addition to card_scale sizing) without moving the focused card itself,
+	# matching the visible gap between cards in Android's Recents panel
+	# rather than packing them edge-to-edge.
+	swiper.card_spacing = 40.0
+	await process_frame
+	if not focused_card.position.is_equal_approx(expected_offset):
+		failures.append(
+			"Expected card_spacing not to move the focused card, got %s" % [focused_card.position]
+		)
+	var expected_next_left: float = expected_card_size.x + 40.0 + expected_offset.x
+	if not is_equal_approx(next_card.position.x, expected_next_left):
+		failures.append(
+			"Expected card_spacing to push the next card to x=%f, got %f" % [expected_next_left, next_card.position.x]
+		)
+	swiper.card_spacing = 0.0
+	await process_frame
 
 	# Double-tapping the focused card (positioned at focused_card.position,
 	# centered within its slot) should select it, fade out every other
