@@ -60,6 +60,21 @@ grow_horizontal = 2
 grow_vertical = 2
 text = "Card Swiper Demo"
 
+[node name="CrossroadsConversationButton" type="Button" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -90.0
+offset_top = 140.0
+offset_right = 90.0
+offset_bottom = 180.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "Test Crossroads Conversation"
+
 [node name="DialogueBox" parent="." instance=ExtResource("2_dlgbx")]
 layout_mode = 1
 visible = false
