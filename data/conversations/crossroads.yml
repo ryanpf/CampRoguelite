@@ -1,0 +1,24 @@
+# Sample branching conversation exercising DialogueParser/DialogueBox
+# branch support: a branch node offers a card per option, and selecting one
+# continues the conversation on the corresponding branch, converging back
+# onto a shared closing line via "next".
+- id: start
+  speaker: balaam
+  text: "Which path shall we take?"
+- branch: true
+  options:
+    - text: "Take the mountain pass"
+      target: mountain
+    - text: "Take the river road"
+      target: river
+- id: mountain
+  speaker: donkey
+  text: "The mountain air is thin here."
+  next: reunited
+- id: river
+  speaker: donkey
+  text: "The river runs swift and cold."
+  next: reunited
+- id: reunited
+  speaker: balaam
+  text: "Onward, regardless of the path taken."
