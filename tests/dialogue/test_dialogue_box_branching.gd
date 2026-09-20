@@ -3,12 +3,15 @@
 ## Loads the dialogue box scene, starts the "crossroads" branching
 ## conversation (see data/conversations/crossroads.yml), advances to the
 ## branch node, verifies it shows a card-select UI with one card per option
-## instead of a dialogue line, selects the second option, and verifies
-## playback jumps to that option's target segment and later converges back
-## onto the shared closing line via its "next". Also restarts the
-## conversation and selects the "Turn back" option to verify its "next: end"
-## ends the conversation immediately rather than converging onto the shared
-## closing line.
+## alongside (not instead of) the still-visible dialogue text, selects the
+## second option, and verifies playback jumps to that option's target
+## segment and later converges back onto the shared closing line via its
+## "next". Also restarts the conversation and selects the "Turn back"
+## option (flagged "special: true", see
+## tests/dialogue/test_dialogue_box_branch_timeout.gd for the case where
+## it's chosen automatically by timing out instead) to verify its
+## "next: end" ends the conversation immediately rather than converging
+## onto the shared closing line.
 ##
 ## The project must have imported its resources at least once (e.g. via a
 ## prior editor run, or `godot --headless --import`). Run with:
@@ -51,8 +54,8 @@ func _initialize() -> void:
 
 	if not branch_options.visible:
 		failures.append("Expected branch options to be visible at the branch node.")
-	if dialogue_panel.visible:
-		failures.append("Expected the normal dialogue panel to be hidden while a branch is active.")
+	if not dialogue_panel.visible:
+		failures.append("Expected the normal dialogue panel to stay visible alongside a branch's cards.")
 
 	# Tapping/clicking to advance must do nothing while a branch is active;
 	# the player must select a card instead.
@@ -91,7 +94,7 @@ func _initialize() -> void:
 	dialogue_box.start_conversation(CONVERSATION_PATH)
 	_simulate_tap(dialogue_box)
 	dialogue_box.select_branch_option(2)
-	if dialogue_text.text != "Perhaps it is wiser to turn back for camp.":
+	if dialogue_text.text != "Too indecisive to choose a path, Balaam simply turns back for camp.":
 		failures.append(
 			"Expected playback to jump to the 'turn_back' branch, got '%s'." % dialogue_text.text
 		)
