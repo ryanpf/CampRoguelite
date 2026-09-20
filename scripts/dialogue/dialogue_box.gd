@@ -8,6 +8,12 @@
 ## instead of a dialogue line; tapping/clicking to advance is disabled until
 ## the player selects a card (double-tap/double-click, per [CardSwiper]),
 ## at which point playback jumps to that option's target segment.
+##
+## A segment's "next" (or a branch option's "target") may also be the
+## special id "end" to finish the conversation immediately after that
+## segment, regardless of what other segments follow it in the file - useful
+## for a branch that cuts a conversation short instead of continuing on to
+## its normal ending.
 extends Control
 
 signal conversation_finished
@@ -15,6 +21,10 @@ signal conversation_finished
 ## Default character file used to resolve conversation "speaker" ids to
 ## display names and portraits.
 const DEFAULT_CHARACTERS_PATH := "res://data/characters.yml"
+
+## Special "next"/branch option "target" id that ends the conversation
+## immediately, regardless of the segment's position in the file.
+const END_TARGET := "end"
 
 @onready var speaker_tab: Panel = $SpeakerTab
 @onready var speaker_label: Label = $SpeakerTab/SpeakerLabel
@@ -166,8 +176,11 @@ func _on_branch_option_selected(index: int) -> void:
 
 ## Resolves segment id [param target] to its index (via [member
 ## _id_to_index]), falling back to [param default_index] if [param target]
-## is empty or unknown.
+## is empty or unknown. The special id [constant END_TARGET] resolves to an
+## index past the end of [member _segments], ending the conversation.
 func _resolve_target(target: String, default_index: int) -> int:
+	if target == END_TARGET:
+		return _segments.size()
 	if target.is_empty() or not _id_to_index.has(target):
 		return default_index
 	return _id_to_index[target]

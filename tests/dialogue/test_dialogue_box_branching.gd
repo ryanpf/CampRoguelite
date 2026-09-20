@@ -5,7 +5,10 @@
 ## branch node, verifies it shows a card-select UI with one card per option
 ## instead of a dialogue line, selects the second option, and verifies
 ## playback jumps to that option's target segment and later converges back
-## onto the shared closing line via its "next".
+## onto the shared closing line via its "next". Also restarts the
+## conversation and selects the "Turn back" option to verify its "next: end"
+## ends the conversation immediately rather than converging onto the shared
+## closing line.
 ##
 ## The project must have imported its resources at least once (e.g. via a
 ## prior editor run, or `godot --headless --import`). Run with:
@@ -73,6 +76,32 @@ func _initialize() -> void:
 	if dialogue_text.text != "Onward, regardless of the path taken.":
 		failures.append(
 			"Expected the 'river' branch to converge onto the shared closing line, got '%s'." % dialogue_text.text
+		)
+
+	# Once the conversation has converged onto its natural ending, one more
+	# tap should finish it normally (baseline for comparison with the early
+	# ending exercised below).
+	_simulate_tap(dialogue_box)
+	if dialogue_box.visible:
+		failures.append("Expected the conversation to finish (hide) after its natural ending line.")
+
+	# Restart the conversation and this time pick the "Turn back" option,
+	# whose target segment ends with "next: end" - verify that ends the
+	# conversation immediately, skipping the shared closing line entirely.
+	dialogue_box.start_conversation(CONVERSATION_PATH)
+	_simulate_tap(dialogue_box)
+	dialogue_box.select_branch_option(2)
+	if dialogue_text.text != "Perhaps it is wiser to turn back for camp.":
+		failures.append(
+			"Expected playback to jump to the 'turn_back' branch, got '%s'." % dialogue_text.text
+		)
+	if not dialogue_box.visible:
+		failures.append("Expected the dialogue box to still be visible on the 'turn_back' line.")
+
+	_simulate_tap(dialogue_box)
+	if dialogue_box.visible:
+		failures.append(
+			"Expected 'next: end' to finish the conversation immediately, but the dialogue box is still visible (text: '%s')." % dialogue_text.text
 		)
 
 	# Let in-flight card fade tweens (from CardSwiper's selection animation)
