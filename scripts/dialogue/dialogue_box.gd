@@ -4,10 +4,11 @@
 ## tapped/clicked.
 ##
 ## Conversations may branch: when playback reaches a branch segment (see
-## [DialogueParser]), a [CardSwiper] is shown with one card per option
-## instead of a dialogue line; tapping/clicking to advance is disabled until
-## the player selects a card (double-tap/double-click, per [CardSwiper]),
-## at which point playback jumps to that option's target segment.
+## [DialogueParser]), a [CardSwiper] is shown alongside the still-visible
+## dialogue text/speaker tab, with one card per option; tapping/clicking to
+## advance is disabled until the player selects a card (double-tap/
+## double-click, per [CardSwiper]), at which point playback jumps to that
+## option's target segment.
 ##
 ## Branch responses have a visible time limit ([member
 ## branch_timeout_seconds], overridable per-branch with a "timeout" key on
@@ -36,13 +37,11 @@ const END_TARGET := "end"
 ## Default time limit, in seconds, a branch's cards are shown before the
 ## special/fallback option is selected automatically. Overridable per-branch
 ## with a "timeout" key on the branch segment (see [DialogueParser]).
-@export var branch_timeout_seconds: float = 10.0
+@export var branch_timeout_seconds: float = 5.0
 
-@onready var speaker_tab: Panel = $SpeakerTab
 @onready var speaker_label: Label = $SpeakerTab/SpeakerLabel
 @onready var speaker_portrait: TextureRect = $SpeakerPortrait
 @onready var dialogue_text: RichTextLabel = $DialogueBox/DialogueText
-@onready var dialogue_box: Panel = $DialogueBox
 @onready var branch_options: CardSwiper = $BranchOptions
 @onready var branch_timeout_label: Label = $BranchTimeoutLabel
 @onready var branch_timer: Timer = $BranchTimer
@@ -155,9 +154,10 @@ func _show_dialogue(segment: Dictionary) -> void:
 
 
 ## Displays [param segment]'s "options" (see [DialogueParser]) as cards in
-## [member branch_options], hiding the normal tap-to-advance dialogue text
-## until one is selected (or, per [member branch_timer], the timeout option
-## is selected automatically).
+## [member branch_options] alongside the still-visible dialogue text, until
+## one is selected (or, per [member branch_timer], the timeout option is
+## selected automatically). Tapping/clicking to advance past the dialogue
+## text stays disabled the whole time (see [member _awaiting_branch_selection]).
 func _show_branch(segment: Dictionary) -> void:
 	_set_branch_active(true)
 	var options: Array = segment.get("options", [])
@@ -211,11 +211,16 @@ func _build_option_card(text: String) -> Control:
 	return card
 
 
+## Shows/hides the branch UI over the still-visible dialogue text/speaker
+## tab: [param active] toggles [member _awaiting_branch_selection] and
+## [member branch_options]' visibility, and (when turning it off) stops the
+## countdown. The normal dialogue panel and speaker tab stay visible the
+## whole time, so the card component and dialog box are visible together
+## (the branch's cards are shown alongside, not instead of, the last
+## dialogue line, per [DialogueParser]).
 func _set_branch_active(active: bool) -> void:
 	_awaiting_branch_selection = active
 	branch_options.visible = active
-	dialogue_box.visible = not active
-	speaker_tab.visible = not active
 	if not active:
 		branch_timer.stop()
 		branch_timeout_label.visible = false

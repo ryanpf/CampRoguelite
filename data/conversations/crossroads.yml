@@ -1,9 +1,13 @@
 # Sample branching conversation exercising DialogueParser/DialogueBox
 # branch support: a branch node offers a card per option, and selecting one
 # continues the conversation on the corresponding branch, converging back
-# onto a shared closing line via "next". The "Turn back" option instead
-# demonstrates ending the conversation early via the special "end" target,
-# skipping the shared closing line entirely.
+# onto a shared closing line via "next". The "Turn back" option is flagged
+# "special: true", so it's also the option chosen automatically if the
+# branch's visible timeout (see DialogueBox.branch_timeout_seconds) runs out
+# before the player picks a card - its line conveys that indecision itself
+# is what turned Balaam back. It also demonstrates ending the conversation
+# early via the special "end" target, skipping the shared closing line
+# entirely.
 - id: start
   speaker: balaam
   text: "Which path shall we take?"
@@ -15,6 +19,7 @@
       target: river
     - text: "Turn back for camp"
       target: turn_back
+      special: true
 - id: mountain
   speaker: donkey
   text: "The mountain air is thin here."
@@ -25,7 +30,7 @@
   next: reunited
 - id: turn_back
   speaker: donkey
-  text: "Perhaps it is wiser to turn back for camp."
+  text: "Too indecisive to choose a path, Balaam simply turns back for camp."
   next: end
 - id: reunited
   speaker: balaam
