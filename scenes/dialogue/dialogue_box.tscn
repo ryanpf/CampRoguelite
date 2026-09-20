@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/dialogue/dialogue_box.gd" id="1_dlgbx"]
+[ext_resource type="PackedScene" path="res://scenes/ui/card_swiper/card_swiper.tscn" id="2_crdsw"]
 
 [node name="DialogueBox" type="Control"]
 layout_mode = 3
@@ -83,3 +84,10 @@ mouse_filter = 2
 bbcode_enabled = true
 fit_content = true
 scroll_active = false
+
+[node name="BranchOptions" parent="." instance=ExtResource("2_crdsw")]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+visible = false
