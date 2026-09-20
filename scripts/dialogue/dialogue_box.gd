@@ -37,7 +37,7 @@ const END_TARGET := "end"
 ## Default time limit, in seconds, a branch's cards are shown before the
 ## special/fallback option is selected automatically. Overridable per-branch
 ## with a "timeout" key on the branch segment (see [DialogueParser]).
-@export var branch_timeout_seconds: float = 5.0
+@export var branch_timeout_seconds: float = 10.0
 
 @onready var speaker_label: Label = $SpeakerTab/SpeakerLabel
 @onready var speaker_portrait: TextureRect = $SpeakerPortrait
