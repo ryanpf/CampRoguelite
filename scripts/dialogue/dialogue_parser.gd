@@ -45,6 +45,12 @@
 ##   speaker: balaam
 ##   text: "Onward, regardless of the path taken."
 ## [/codeblock]
+##
+## A branch response has a visible time limit (see [DialogueBox]'s
+## "branch_timeout_seconds", overridable per-branch with a "timeout" key on
+## the "branch: true" segment) after which one option is chosen
+## automatically. That option is the one flagged "special: true"; if no
+## option is flagged, the first option is used as the automatic fallback.
 class_name DialogueParser
 extends RefCounted
 
@@ -163,6 +169,14 @@ static func _close_nested_list(
 ## of options rather than a line of dialogue).
 static func is_branch(segment: Dictionary) -> bool:
 	return str(segment.get("branch", "")).to_lower() == "true"
+
+
+## Returns whether [param option] (one entry of a branch segment's "options"
+## list) is flagged "special: true" - the option automatically selected if
+## the branch's visible time limit expires before the player picks one (see
+## the class description).
+static func is_special_option(option: Dictionary) -> bool:
+	return str(option.get("special", "")).to_lower() == "true"
 
 
 static func _unquote(value: String) -> String:
