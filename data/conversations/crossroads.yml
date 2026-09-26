@@ -8,7 +8,7 @@
 # "next"; the timid branch instead ends the conversation early via the
 # special "end" target.
 #
-# The "indecisive" option has no tags at all: it's flagged "special: true"
+# The "indecisive" option has no tags at all: it's flagged "timeout: true"
 # so it's only chosen if the branch's visible timeout (see
 # DialogueBox.branch_timeout_seconds) runs out before the player plays a
 # card, or if a played card matches none of the options (such as the
@@ -27,7 +27,7 @@
       target: shortcut
     - tags: brash
       target: mountain
-    - special: true
+    - timeout: true
       target: indecisive
 - id: refuse
   speaker: donkey

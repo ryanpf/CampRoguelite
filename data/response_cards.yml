@@ -4,7 +4,7 @@
 # conversation follows; its "text" should hint at them. Several cards may
 # share a tag, a card may carry more than one, and a card may have none at
 # all - an untagged card never matches a branch directly, so it always
-# follows the branch's fallback (special) option.
+# follows the branch's fallback ("timeout: true") option.
 - text: "Nope. Absolutely not."
   tags: timid
 - text: "Um... is there an easier way?"

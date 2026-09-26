@@ -1,7 +1,7 @@
 ## Headless smoke test for [DialogueBox]'s branch response timeout: verifies
 ## a countdown is shown while a branch's cards await selection, and that
 ## letting it run out (rather than playing a response card) automatically
-## follows the option flagged "special: true" (see
+## follows the option flagged "timeout: true" (see
 ## data/conversations/branch_timeout.yml), jumping playback to that option's
 ## target exactly as playing a matching card would.
 ##
@@ -62,7 +62,7 @@ func _initialize() -> void:
 		failures.append("Expected the timeout countdown to hide once the timeout auto-selected an option.")
 	if dialogue_text.text != "Perhaps it is wiser to turn back for camp.":
 		failures.append(
-			"Expected the timeout to follow the 'special: true' option ('turn_back'), got '%s'." % dialogue_text.text
+			"Expected the timeout to follow the 'timeout: true' option ('turn_back'), got '%s'." % dialogue_text.text
 		)
 
 	# The "turn_back" segment's "next: end" should finish the conversation
@@ -79,7 +79,7 @@ func _initialize() -> void:
 	await process_frame
 
 	if failures.is_empty():
-		print("PASS: dialogue box shows a countdown at branch nodes and follows the special option once it runs out.")
+		print("PASS: dialogue box shows a countdown at branch nodes and follows the timeout option once it runs out.")
 		quit(0)
 	else:
 		for failure in failures:

@@ -20,7 +20,7 @@
 ## Branch responses have a visible time limit ([member
 ## branch_timeout_seconds], overridable per-branch with a "timeout" key on
 ## the segment): a countdown is shown while the cards await selection, and
-## if it runs out before the player plays one, the option flagged "special:
+## if it runs out before the player plays one, the option flagged "timeout:
 ## true" (or the first option, if none is flagged) is followed
 ## automatically, without any card being played.
 ##
@@ -45,7 +45,7 @@ const DEFAULT_RESPONSE_CARDS_PATH := "res://data/response_cards.yml"
 const END_TARGET := "end"
 
 ## Default time limit, in seconds, a branch's cards are shown before the
-## special/fallback option is selected automatically. Overridable per-branch
+## timeout/fallback option is selected automatically. Overridable per-branch
 ## with a "timeout" key on the branch segment (see [DialogueParser]).
 @export var branch_timeout_seconds: float = 10.0
 

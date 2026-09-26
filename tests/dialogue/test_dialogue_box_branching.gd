@@ -12,7 +12,7 @@
 ## "next: end" ends the conversation immediately rather than converging onto
 ## the shared closing line, plays a multi-tag "brash, smart" card to verify
 ## its first tag takes priority, and plays an untagged card to verify it
-## follows the fallback ("special: true") option like an unmatched card.
+## follows the fallback ("timeout: true") option like an unmatched card.
 ##
 ## The project must have imported its resources at least once (e.g. via a
 ## prior editor run, or `godot --headless --import`). Run with:
@@ -135,7 +135,7 @@ func _initialize() -> void:
 		)
 
 	# A card with no tags matches no option, so it follows the fallback
-	# ("special: true") option, same as a timeout.
+	# ("timeout: true") option, same as a timeout.
 	dialogue_box.start_conversation(CONVERSATION_PATH)
 	_simulate_tap(dialogue_box)
 	dialogue_box.play_response_card(_card_index_with_tags(dialogue_box, []))

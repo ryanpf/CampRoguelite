@@ -26,7 +26,7 @@ func _initialize() -> void:
       target: mountain
     - tags: [Timid, easygoing]
       target: river
-    - special: true
+    - timeout: true
       target: indecisive
 - id: mountain
   speaker: donkey
@@ -54,8 +54,8 @@ func _initialize() -> void:
 				failures.append("Expected first option to be tagged 'brash' targeting 'mountain', got %s." % [options[0]])
 			elif options[1].get("target") != "river":
 				failures.append("Expected second option to target 'river', got %s." % [options[1]])
-			elif not DialogueParser.is_special_option(options[2]):
-				failures.append("Expected third option to be special, got %s." % [options[2]])
+			elif not DialogueParser.is_timeout_option(options[2]):
+				failures.append("Expected third option to be the timeout option, got %s." % [options[2]])
 			else:
 				var cases := [
 					[["brash"], 0],
@@ -63,7 +63,7 @@ func _initialize() -> void:
 					[["easygoing"], 1],
 					# First card tag with any matching option wins.
 					[["smart", "easygoing", "brash"], 1],
-					# No matching option (the untagged special option is
+					# No matching option (the untagged timeout option is
 					# never matched by a card).
 					[["smart"], -1],
 					# An untagged card never matches an option directly.
@@ -76,9 +76,9 @@ func _initialize() -> void:
 							"Expected tags %s to resolve to option %d, got %d." % [case[0], case[1], index]
 						)
 				if DialogueParser.find_fallback_option(options) != 2:
-					failures.append("Expected the special option to be the fallback.")
+					failures.append("Expected the timeout option to be the fallback.")
 				if DialogueParser.find_fallback_option(options.slice(0, 2)) != 0:
-					failures.append("Expected the first option to be the fallback when none is special.")
+					failures.append("Expected the first option to be the fallback when none is flagged timeout.")
 
 		if segments[2].get("id") != "mountain" or segments[2].get("next") != "reunited":
 			failures.append("Expected segment 2 to be 'mountain' with next 'reunited', got %s." % [segments[2]])

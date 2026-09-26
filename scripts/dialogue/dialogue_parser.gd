@@ -66,9 +66,10 @@
 ## A branch response has a visible time limit (see [DialogueBox]'s
 ## "branch_timeout_seconds", overridable per-branch with a "timeout" key on
 ## the "branch: true" segment) after which one option is chosen
-## automatically. That option is the one flagged "special: true"; if no
+## automatically. That option is the one flagged "timeout: true" (not to be
+## confused with the branch segment's own "timeout" duration); if no
 ## option is flagged, the first option is used as the automatic fallback. A
-## special option may omit "tags" entirely, so no card ever picks it
+## timeout option may omit "tags" entirely, so no card ever picks it
 ## directly and it's reached only by letting the timer run out (i.e. by
 ## being indecisive) or by playing a card that matches nothing (or has no
 ## tags).
@@ -193,11 +194,11 @@ static func is_branch(segment: Dictionary) -> bool:
 
 
 ## Returns whether [param option] (one entry of a branch segment's "options"
-## list) is flagged "special: true" - the option automatically selected if
+## list) is flagged "timeout: true" - the option automatically selected if
 ## the branch's visible time limit expires before the player picks one (see
 ## the class description).
-static func is_special_option(option: Dictionary) -> bool:
-	return str(option.get("special", "")).to_lower() == "true"
+static func is_timeout_option(option: Dictionary) -> bool:
+	return str(option.get("timeout", "")).to_lower() == "true"
 
 
 ## Returns the index (into [param options], a branch segment's "options"
@@ -217,11 +218,11 @@ static func find_option_for_tags(options: Array, card_tags: PackedStringArray) -
 
 ## Returns the index (into [param options], a branch segment's "options"
 ## list) of the fallback option followed when a branch times out or a
-## played card matches no option: the one flagged "special: true", else the
+## played card matches no option: the one flagged "timeout: true", else the
 ## first option, or [code]-1[/code] if [param options] is empty.
 static func find_fallback_option(options: Array) -> int:
 	for i in options.size():
-		if is_special_option(options[i]):
+		if is_timeout_option(options[i]):
 			return i
 	return 0 if not options.is_empty() else -1
 

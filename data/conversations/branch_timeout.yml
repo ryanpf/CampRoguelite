@@ -1,7 +1,7 @@
 # Sample branching conversation exercising DialogueBox's branch response
 # timeout: the branch node overrides the default timeout down to a fraction
 # of a second (via "timeout") so tests can wait it out quickly, and flags
-# the untagged "turn_back" option "special: true" so it is the one
+# the untagged "turn_back" option "timeout: true" so it is the one
 # followed automatically once that timeout runs out without the player
 # playing a response card.
 - id: start
@@ -14,7 +14,7 @@
       target: river
     - tags: brash
       target: mountain
-    - special: true
+    - timeout: true
       target: turn_back
 - id: mountain
   speaker: donkey
