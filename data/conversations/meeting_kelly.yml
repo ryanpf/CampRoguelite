@@ -31,8 +31,8 @@
       target: intro_enthusiastic
     - tags: acknowledge
       target: intro_acknowledge
-    - tags: random
-      target: intro_random
+    - tags: hungry
+      target: intro_hungry
     - timeout: true
       target: intro_quiet
 - id: intro_friendly
@@ -63,7 +63,7 @@
   speaker: kelly
   text: "Yep. So if you need to know anything, just ask me. Like, ANYTHING. Go ahead. ...Okay, later then."
   next: pudding
-- id: intro_random
+- id: intro_hungry
   speaker: kelly
   text: "Um... it's like ten in the morning. We JUST had breakfast. Okaaay, I'm gonna go find my cabin. Bye!"
   next: end
@@ -93,8 +93,8 @@
       target: pudding_enthusiastic
     - tags: acknowledge
       target: pudding_acknowledge
-    - tags: random
-      target: pudding_random
+    - tags: hungry
+      target: pudding_hungry
     - timeout: true
       target: pudding_quiet
 - id: pudding_friendly
@@ -133,7 +133,7 @@
   speaker: kelly
   text: "...Are you even listening? Wow. Okay. Bye, I guess."
   next: end
-- id: pudding_random
+- id: pudding_hungry
   speaker: kelly
   text: "Ha! You're thinking about food too? We're basically twins."
   next: lunch
@@ -145,8 +145,8 @@
   options:
     - tags: friendly, curious, funny, smart, enthusiastic
       target: lunch_yes
-    - tags: random
-      target: lunch_random
+    - tags: hungry
+      target: lunch_hungry
     - tags: acknowledge
       target: lunch_acknowledge
     - tags: shy
@@ -171,7 +171,7 @@
   speaker: kelly
   text: "Wow, okay, Big Deal. You're still sitting with me though. Come on!"
   next: end
-- id: lunch_random
+- id: lunch_hungry
   speaker: kelly
   text: "It literally IS lunchtime. That was the bell. Did you hear ANYTHING I said? ...Come on, just follow me."
   next: end
