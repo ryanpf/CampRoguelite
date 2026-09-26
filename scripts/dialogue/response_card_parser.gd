@@ -16,7 +16,9 @@
 ##
 ## A card's tags are listed in priority order: when played, its first tag
 ## that any branch option responds to wins (see [method
-## DialogueParser.find_option_for_tags]).
+## DialogueParser.find_option_for_tags]). "tags" may be omitted: a card with
+## no tags is valid, and behaves like a card matching none of a branch's
+## options (it follows the branch's fallback option).
 class_name ResponseCardParser
 extends RefCounted
 
@@ -34,19 +36,14 @@ static func load_cards(path: String) -> Array[Dictionary]:
 
 
 ## Parses raw YAML-subset [param text] into an [Array] of response cards
-## shaped like {"text": String, "tags": PackedStringArray}. Entries without
-## any tags are skipped with an error, since they could never trigger a
-## branch of their own.
+## shaped like {"text": String, "tags": PackedStringArray}; "tags" is
+## empty for a card without any.
 static func parse(text: String) -> Array[Dictionary]:
 	var cards: Array[Dictionary] = []
 	for entry in DialogueParser.parse(text):
-		var tags := parse_tags(entry)
-		if tags.is_empty():
-			push_error("ResponseCardParser: skipping card with no tags: %s" % [entry])
-			continue
 		cards.append({
 			"text": str(entry.get("text", "")),
-			"tags": tags,
+			"tags": parse_tags(entry),
 		})
 	return cards
 

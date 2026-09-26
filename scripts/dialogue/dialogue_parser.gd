@@ -60,8 +60,8 @@
 ## The conversation's visible dialogue should allude to which kind of
 ## response leads where (e.g. a timid card turns back, a brash one takes the
 ## mountain). See [method find_option_for_tags] for how a played card picks
-## an option; a card matching no option at all follows the same fallback
-## option as the timeout below.
+## an option; a card matching no option at all (including a card with no
+## tags) follows the same fallback option as the timeout below.
 ##
 ## A branch response has a visible time limit (see [DialogueBox]'s
 ## "branch_timeout_seconds", overridable per-branch with a "timeout" key on
@@ -70,7 +70,8 @@
 ## option is flagged, the first option is used as the automatic fallback. A
 ## special option may omit "tags" entirely, so no card ever picks it
 ## directly and it's reached only by letting the timer run out (i.e. by
-## being indecisive) or by playing a card that matches nothing.
+## being indecisive) or by playing a card that matches nothing (or has no
+## tags).
 class_name DialogueParser
 extends RefCounted
 
@@ -202,7 +203,8 @@ static func is_special_option(option: Dictionary) -> bool:
 ## Returns the index (into [param options], a branch segment's "options"
 ## list) of the option triggered by a response card with [param card_tags]
 ## (see [method ResponseCardParser.parse_tags]), or [code]-1[/code] if none
-## matches. The card's tags are tried in order, so its first tag that any
+## matches (always the case for a card with no tags). The card's tags are
+## tried in order, so its first tag that any
 ## option responds to wins; among options sharing that tag, the first listed
 ## wins.
 static func find_option_for_tags(options: Array, card_tags: PackedStringArray) -> int:

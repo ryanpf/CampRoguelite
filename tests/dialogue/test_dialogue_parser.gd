@@ -66,6 +66,8 @@ func _initialize() -> void:
 					# No matching option (the untagged special option is
 					# never matched by a card).
 					[["smart"], -1],
+					# An untagged card never matches an option directly.
+					[[], -1],
 				]
 				for case in cases:
 					var index := DialogueParser.find_option_for_tags(options, PackedStringArray(case[0]))
@@ -87,14 +89,15 @@ func _initialize() -> void:
 	var cards := ResponseCardParser.parse("""
 - text: "Nope."
   tags: timid
-- text: "Missing tags"
+- text: "No tags"
 - text: "YES! Clever AND bold!"
   tags: Brash,  smart ,
 """)
-	if cards.size() != 2:
-		failures.append("Expected 2 valid response cards, got %d." % cards.size())
+	if cards.size() != 3:
+		failures.append("Expected 3 response cards (untagged cards are valid), got %d." % cards.size())
 	elif cards[0]["text"] != "Nope." or Array(cards[0]["tags"]) != ["timid"] \
-			or Array(cards[1]["tags"]) != ["brash", "smart"]:
+			or cards[1]["text"] != "No tags" or not cards[1]["tags"].is_empty() \
+			or Array(cards[2]["tags"]) != ["brash", "smart"]:
 		failures.append("Unexpected parsed response cards: %s." % [cards])
 
 	if failures.is_empty():

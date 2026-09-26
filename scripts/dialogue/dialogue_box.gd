@@ -11,7 +11,7 @@
 ## tap/double-click, per [CardSwiper]), at which point playback jumps to the
 ## target of the branch option matching that card's tags (see [method
 ## DialogueParser.find_option_for_tags]), or to the fallback option if none
-## matches.
+## matches (as is always the case for a card with no tags).
 ##
 ## With [member show_debug_tags] on, each card also shows its tags, and a
 ## label above the cards lists every option at the fork with its tags and
@@ -249,7 +249,8 @@ func _build_response_card(response_card: Dictionary) -> Control:
 	card.add_child(label)
 	if show_debug_tags:
 		var tags_label := Label.new()
-		tags_label.text = "[%s]" % ", ".join(response_card.get("tags", PackedStringArray()))
+		var tags: PackedStringArray = response_card.get("tags", PackedStringArray())
+		tags_label.text = "[%s]" % (", ".join(tags) if not tags.is_empty() else "no tags")
 		tags_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		tags_label.add_theme_font_size_override("font_size", 12)
 		tags_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)

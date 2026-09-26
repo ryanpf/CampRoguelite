@@ -2,7 +2,9 @@
 # branch nodes (see scripts/dialogue/response_card_parser.gd). A card's
 # "tags" (comma-separated, in priority order) decide which branch the
 # conversation follows; its "text" should hint at them. Several cards may
-# share a tag, and a card may carry more than one.
+# share a tag, a card may carry more than one, and a card may have none at
+# all - an untagged card never matches a branch directly, so it always
+# follows the branch's fallback (special) option.
 - text: "Nope. Absolutely not."
   tags: timid
 - text: "Um... is there an easier way?"
@@ -15,3 +17,4 @@
   tags: brash
 - text: "Bold AND clever: we cut straight over the ridge!"
   tags: brash, smart
+- text: "Wait, what was the question?"

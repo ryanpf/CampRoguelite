@@ -10,8 +10,9 @@
 ## later converges back onto the shared closing line via its "next". Also
 ## restarts the conversation and plays a "timid" card to verify its branch's
 ## "next: end" ends the conversation immediately rather than converging onto
-## the shared closing line, and plays a multi-tag "brash, smart" card to
-## verify its first tag takes priority.
+## the shared closing line, plays a multi-tag "brash, smart" card to verify
+## its first tag takes priority, and plays an untagged card to verify it
+## follows the fallback ("special: true") option like an unmatched card.
 ##
 ## The project must have imported its resources at least once (e.g. via a
 ## prior editor run, or `godot --headless --import`). Run with:
@@ -131,6 +132,16 @@ func _initialize() -> void:
 	if dialogue_text.text != "Up the mountain pass at a gallop! Hold on to thy hat!":
 		failures.append(
 			"Expected a 'brash, smart' card to follow its first tag to the 'mountain' branch, got '%s'." % dialogue_text.text
+		)
+
+	# A card with no tags matches no option, so it follows the fallback
+	# ("special: true") option, same as a timeout.
+	dialogue_box.start_conversation(CONVERSATION_PATH)
+	_simulate_tap(dialogue_box)
+	dialogue_box.play_response_card(_card_index_with_tags(dialogue_box, []))
+	if dialogue_text.text != "Too indecisive to choose a path, Balaam simply turns back for camp.":
+		failures.append(
+			"Expected an untagged card to follow the fallback 'indecisive' branch, got '%s'." % dialogue_text.text
 		)
 
 	# Let in-flight card fade tweens (from CardSwiper's selection animation)
