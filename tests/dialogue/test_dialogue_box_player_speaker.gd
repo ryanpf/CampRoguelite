@@ -71,7 +71,8 @@ func _initialize() -> void:
 		failures.append("Expected Kelly's reply to a shy card, got %s: '%s'." % [speaker_label.text, dialogue_text.text])
 
 	# Letting a branch time out plays no card: Kelly reacts to the silence
-	# directly, without a player line in between.
+	# directly, without a player line in between, and walks off, ending the
+	# conversation early.
 	_start(dialogue_box)
 	dialogue_box.branch_timeout_seconds = 0.05
 	_simulate_tap(dialogue_box)
@@ -79,6 +80,9 @@ func _initialize() -> void:
 	await create_timer(0.3).timeout
 	if speaker_label.text != "Kelly" or not dialogue_text.text.begins_with("Helloooo? Earth to new kid!"):
 		failures.append("Expected a timeout to go straight to Kelly's 'quiet' reply, got %s: '%s'." % [speaker_label.text, dialogue_text.text])
+	_simulate_tap(dialogue_box)
+	if dialogue_box.visible:
+		failures.append("Expected silence to end the conversation early, got '%s'." % dialogue_text.text)
 	dialogue_box.branch_timeout_seconds = 10.0
 
 	# Every card must carry the conversation through to its end, speaking as

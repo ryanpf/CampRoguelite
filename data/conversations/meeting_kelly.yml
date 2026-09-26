@@ -5,9 +5,11 @@
 # "speaker: player", so the played card's text is shown as the player's own
 # line before Kelly reacts to it.
 #
-# Each branch's fallback ("timeout: true") option covers both letting the
-# timer run out (the player says nothing) and playing the untagged "Is it
-# almost lunchtime?" card - Kelly's fallback lines work for either.
+# Not every card makes sense at every point: an off-topic or deflating
+# response can make Kelly lose interest and leave, ending the conversation
+# early (via "next: end") before she ever gets to the lunch invite. So does
+# silence - each branch's fallback ("timeout: true") option, followed when
+# the timer runs out, always has Kelly give up and walk off.
 - speaker: kelly
   text: "Hey! You're new, right? I can tell 'cause you're holding your map upside down."
 - speaker: kelly
@@ -29,6 +31,8 @@
       target: intro_enthusiastic
     - tags: acknowledge
       target: intro_acknowledge
+    - tags: random
+      target: intro_random
     - timeout: true
       target: intro_quiet
 - id: intro_friendly
@@ -59,10 +63,14 @@
   speaker: kelly
   text: "Yep. So if you need to know anything, just ask me. Like, ANYTHING. Go ahead. ...Okay, later then."
   next: pudding
+- id: intro_random
+  speaker: kelly
+  text: "Um... it's like ten in the morning. We JUST had breakfast. Okaaay, I'm gonna go find my cabin. Bye!"
+  next: end
 - id: intro_quiet
   speaker: kelly
-  text: "Helloooo? Earth to new kid! ...Okay, that's fine. I can talk enough for both of us."
-  next: pudding
+  text: "Helloooo? Earth to new kid! ...Okay, never mind. I'm gonna go find my cabin. See ya."
+  next: end
 - id: pudding
   speaker: kelly
   text: "Okay, so the most important thing about camp: Mystery Pudding. Every Friday. Nobody knows what flavor it is. Marcus says it glows in the dark."
@@ -85,8 +93,10 @@
       target: pudding_enthusiastic
     - tags: acknowledge
       target: pudding_acknowledge
+    - tags: random
+      target: pudding_random
     - timeout: true
-      target: pudding_lunch
+      target: pudding_quiet
 - id: pudding_friendly
   speaker: kelly
   text: "RIGHT? We should do a stakeout on Friday. You bring the flashlight, I'll bring the spoons."
@@ -117,9 +127,13 @@
   next: lunch
 - id: pudding_acknowledge
   speaker: kelly
-  text: "Don't 'oh, okay' me! This is SERIOUS camp business. You'll see. Friday. Be ready."
-  next: lunch
-- id: pudding_lunch
+  text: "'Oh, okay'? That's IT? This is the biggest mystery at camp! Ugh. I'm gonna go tell someone who actually cares."
+  next: end
+- id: pudding_quiet
+  speaker: kelly
+  text: "...Are you even listening? Wow. Okay. Bye, I guess."
+  next: end
+- id: pudding_random
   speaker: kelly
   text: "Ha! You're thinking about food too? We're basically twins."
   next: lunch
@@ -131,6 +145,8 @@
   options:
     - tags: friendly, curious, funny, smart, enthusiastic
       target: lunch_yes
+    - tags: random
+      target: lunch_random
     - tags: acknowledge
       target: lunch_acknowledge
     - tags: shy
@@ -155,6 +171,10 @@
   speaker: kelly
   text: "Wow, okay, Big Deal. You're still sitting with me though. Come on!"
   next: end
+- id: lunch_random
+  speaker: kelly
+  text: "It literally IS lunchtime. That was the bell. Did you hear ANYTHING I said? ...Come on, just follow me."
+  next: end
 - id: lunch_quiet
   speaker: kelly
-  text: "I'm gonna take that as a yes. Come on, before Marcus steals the ketchup!"
+  text: "...Or not. That's cool. Whatever. See ya around, new kid."
