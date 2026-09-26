@@ -16,4 +16,8 @@
   tags: smart, funny
 - text: "Wait, really? Tell me more!"
   tags: curious, friendly
+- text: "Wow, that's crazy!"
+  tags: enthusiastic
+- text: "Oh, okay."
+  tags: acknowledge
 - text: "Is it almost lunchtime?"

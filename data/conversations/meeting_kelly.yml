@@ -25,6 +25,10 @@
       target: intro_brash
     - tags: curious
       target: intro_curious
+    - tags: enthusiastic
+      target: intro_enthusiastic
+    - tags: acknowledge
+      target: intro_acknowledge
     - timeout: true
       target: intro_quiet
 - id: intro_friendly
@@ -46,6 +50,14 @@
 - id: intro_curious
   speaker: kelly
   text: "Seriously! Like, I know which bunk doesn't squeak. And which counselor gives out extra glow sticks."
+  next: pudding
+- id: intro_enthusiastic
+  speaker: kelly
+  text: "I KNOW. Three whole summers. I'm practically a counselor. Except I don't have a whistle. Yet."
+  next: pudding
+- id: intro_acknowledge
+  speaker: kelly
+  text: "Yep. So if you need to know anything, just ask me. Like, ANYTHING. Go ahead. ...Okay, later then."
   next: pudding
 - id: intro_quiet
   speaker: kelly
@@ -69,6 +81,10 @@
       target: pudding_brash
     - tags: curious
       target: pudding_curious
+    - tags: enthusiastic
+      target: pudding_enthusiastic
+    - tags: acknowledge
+      target: pudding_acknowledge
     - timeout: true
       target: pudding_lunch
 - id: pudding_friendly
@@ -95,6 +111,14 @@
   speaker: kelly
   text: "Okay, so. Some people think it's banana. Some people think it's butterscotch. I think it's BOTH."
   next: lunch
+- id: pudding_enthusiastic
+  speaker: kelly
+  text: "Totally crazy. Last summer Marcus ate three bowls and couldn't feel his tongue for a whole day."
+  next: lunch
+- id: pudding_acknowledge
+  speaker: kelly
+  text: "Don't 'oh, okay' me! This is SERIOUS camp business. You'll see. Friday. Be ready."
+  next: lunch
 - id: pudding_lunch
   speaker: kelly
   text: "Ha! You're thinking about food too? We're basically twins."
@@ -105,8 +129,10 @@
 - branch: true
   speaker: player
   options:
-    - tags: friendly, curious, funny, smart
+    - tags: friendly, curious, funny, smart, enthusiastic
       target: lunch_yes
+    - tags: acknowledge
+      target: lunch_acknowledge
     - tags: shy
       target: lunch_shy
     - tags: brash
@@ -116,6 +142,10 @@
 - id: lunch_yes
   speaker: kelly
   text: "Yesss! Come on, race you there! Last one's a rotten egg!"
+  next: end
+- id: lunch_acknowledge
+  speaker: kelly
+  text: "Cool, follow me! Oh, and sit on the left side. The right side of the bench wobbles."
   next: end
 - id: lunch_shy
   speaker: kelly
