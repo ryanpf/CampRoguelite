@@ -28,6 +28,10 @@
 ## shown as that speaker's line (so the player's dialogue comes from the
 ## cards they play), and the chosen option is followed on the next advance.
 ##
+## For debugging, [member debug_timeout_card] turns the countdown off and
+## instead adds an extra card after the player's own ones that, when played,
+## follows the timeout option just as if the timer had run out.
+##
 ## A segment's "next" (or a branch option's "target") may also be the
 ## special id "end" to finish the conversation immediately after that
 ## segment, regardless of what other segments follow it in the file - useful
@@ -56,6 +60,15 @@ const END_TARGET := "end"
 ## Debug aid: shows each response card's tags on the card, and lists every
 ## branch option's tags and target at a dialogue fork.
 @export var show_debug_tags: bool = true
+
+## Debug aid: disables the branch countdown (see [member
+## branch_timeout_seconds]) and instead offers an extra "timeout" card at
+## every branch, after the player's [member response_cards], that follows
+## the branch's timeout option as if the timer had run out.
+@export var debug_timeout_card: bool = true
+
+## Text shown on the [member debug_timeout_card] card.
+const DEBUG_TIMEOUT_CARD_TEXT := "[DEBUG] Timeout\n(say nothing)"
 
 @onready var speaker_label: Label = $SpeakerTab/SpeakerLabel
 @onready var speaker_portrait: TextureRect = $SpeakerPortrait
@@ -157,7 +170,8 @@ func advance() -> void:
 ## its card had been double-tapped/double-clicked, jumping playback to the
 ## target of the branch option matching its tags. Does nothing if
 ## the current segment is not a branch awaiting selection, or if [param
-## index] is out of range.
+## index] is out of range. With [member debug_timeout_card] on, [param
+## index] [code]response_cards.size()[/code] plays the debug timeout card.
 func play_response_card(index: int) -> void:
 	if not _awaiting_branch_selection:
 		return
@@ -210,6 +224,8 @@ func _show_branch(segment: Dictionary) -> void:
 	var cards: Array[Control] = []
 	for response_card in response_cards:
 		cards.append(_build_response_card(response_card))
+	if debug_timeout_card:
+		cards.append(_build_response_card({"text": DEBUG_TIMEOUT_CARD_TEXT}))
 	_branch_timeout_option_index = DialogueParser.find_fallback_option(options)
 	branch_debug_label.visible = show_debug_tags
 	branch_debug_label.text = _describe_branch_options(options)
@@ -219,7 +235,11 @@ func _show_branch(segment: Dictionary) -> void:
 	# under its own selection fade-out tween.
 	branch_options.set_cards(cards)
 	branch_options.clear_selection()
-	_start_branch_timer(segment)
+	if debug_timeout_card:
+		branch_timer.stop()
+		branch_timeout_label.visible = false
+	else:
+		_start_branch_timer(segment)
 
 
 ## Starts [member branch_timer] counting down towards automatically
@@ -264,7 +284,7 @@ func _build_response_card(response_card: Dictionary) -> Control:
 	label.set_anchors_preset(Control.PRESET_FULL_RECT)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(label)
-	if show_debug_tags:
+	if show_debug_tags and response_card.has("tags"):
 		var tags_label := Label.new()
 		var tags: PackedStringArray = response_card.get("tags", PackedStringArray())
 		tags_label.text = "[%s]" % (", ".join(tags) if not tags.is_empty() else "no tags")
@@ -309,6 +329,9 @@ func _on_branch_timer_timeout() -> void:
 ## option is followed on the next advance instead.
 func _on_branch_option_selected(index: int) -> void:
 	if not _awaiting_branch_selection:
+		return
+	if debug_timeout_card and index == response_cards.size():
+		_on_branch_timer_timeout()
 		return
 	if index < 0 or index >= response_cards.size():
 		return

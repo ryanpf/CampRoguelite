@@ -29,6 +29,8 @@ func _initialize() -> void:
 	# Wait a frame so the dialogue box's own _ready() (and its @onready node
 	# references) run before we start a conversation on it.
 	await process_frame
+	# This test exercises the real countdown, so turn off the debug timeout card.
+	dialogue_box.debug_timeout_card = false
 
 	dialogue_box.start_conversation(CONVERSATION_PATH)
 
