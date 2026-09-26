@@ -4,12 +4,14 @@
 ## conversation (see data/conversations/crossroads.yml), advances to the
 ## branch node, verifies it shows a card-select UI with one card per
 ## response card in the player's inventory (see data/response_cards.yml)
-## alongside (not instead of) the still-visible dialogue text, plays a card
-## with hidden value 2, and verifies playback jumps to the value-2 option's
-## target segment and later converges back onto the shared closing line via
-## its "next". Also restarts the conversation and plays a value-1 card to
-## verify its branch's "next: end" ends the conversation immediately rather
-## than converging onto the shared closing line.
+## alongside (not instead of) the still-visible dialogue text, plus the
+## debug label listing every branch's tags, plays an "easygoing" card, and
+## verifies playback jumps to the "easygoing" option's target segment and
+## later converges back onto the shared closing line via its "next". Also
+## restarts the conversation and plays a "timid" card to verify its branch's
+## "next: end" ends the conversation immediately rather than converging onto
+## the shared closing line, and plays a multi-tag "brash, smart" card to
+## verify its first tag takes priority.
 ##
 ## The project must have imported its resources at least once (e.g. via a
 ## prior editor run, or `godot --headless --import`). Run with:
@@ -59,6 +61,14 @@ func _initialize() -> void:
 		failures.append(
 			"Expected one card per response card in the inventory (%d), got %d." % [inventory_size, branch_options.card_count()]
 		)
+	var branch_debug_label: Label = dialogue_box.get_node("BranchDebugLabel")
+	if not branch_debug_label.visible:
+		failures.append("Expected the branch debug label to be visible at the branch node.")
+	for expected in ["timid -> refuse", "smart -> shortcut", "(no tags) / (timeout) -> indecisive"]:
+		if not branch_debug_label.text.contains(expected):
+			failures.append(
+				"Expected the branch debug label to list '%s', got '%s'." % [expected, branch_debug_label.text]
+			)
 	if not dialogue_panel.visible:
 		failures.append("Expected the normal dialogue panel to stay visible alongside a branch's cards.")
 
@@ -68,14 +78,16 @@ func _initialize() -> void:
 	if not branch_options.visible:
 		failures.append("Expected tapping to be ignored while a branch's cards await selection.")
 
-	# Play a response card with hidden value 2 (the "river" branch).
-	dialogue_box.play_response_card(_card_index_with_value(dialogue_box, 2))
+	# Play the "easygoing" response card (the "river" branch).
+	dialogue_box.play_response_card(_card_index_with_tags(dialogue_box, ["easygoing"]))
 
 	if branch_options.visible:
 		failures.append("Expected branch options to hide again after a card is played.")
-	if dialogue_text.text != "The river road, then. Slow and gentle, as the saints intended.":
+	if branch_debug_label.visible:
+		failures.append("Expected the branch debug label to hide again after a card is played.")
+	if dialogue_text.text != "The river road, then. Slow and gentle, no need to fuss.":
 		failures.append(
-			"Expected a value-2 card to jump to the 'river' branch, got '%s'." % dialogue_text.text
+			"Expected an 'easygoing' card to jump to the 'river' branch, got '%s'." % dialogue_text.text
 		)
 
 	# The "river" segment's "next: reunited" should converge back onto the
@@ -93,15 +105,15 @@ func _initialize() -> void:
 	if dialogue_box.visible:
 		failures.append("Expected the conversation to finish (hide) after its natural ending line.")
 
-	# Restart the conversation and this time play a value-1 card, whose
+	# Restart the conversation and this time play a "timid" card, whose
 	# "refuse" branch ends with "next: end" - verify that ends the
 	# conversation immediately, skipping the shared closing line entirely.
 	dialogue_box.start_conversation(CONVERSATION_PATH)
 	_simulate_tap(dialogue_box)
-	dialogue_box.play_response_card(_card_index_with_value(dialogue_box, 1))
+	dialogue_box.play_response_card(_card_index_with_tags(dialogue_box, ["timid"]))
 	if dialogue_text.text != "Not one more hoof forward. Back to camp, and be quick about it.":
 		failures.append(
-			"Expected a value-1 card to jump to the 'refuse' branch, got '%s'." % dialogue_text.text
+			"Expected a 'timid' card to jump to the 'refuse' branch, got '%s'." % dialogue_text.text
 		)
 	if not dialogue_box.visible:
 		failures.append("Expected the dialogue box to still be visible on the 'refuse' line.")
@@ -110,6 +122,15 @@ func _initialize() -> void:
 	if dialogue_box.visible:
 		failures.append(
 			"Expected 'next: end' to finish the conversation immediately, but the dialogue box is still visible (text: '%s')." % dialogue_text.text
+		)
+
+	# A card tagged "brash, smart" matches two options; its first tag wins.
+	dialogue_box.start_conversation(CONVERSATION_PATH)
+	_simulate_tap(dialogue_box)
+	dialogue_box.play_response_card(_card_index_with_tags(dialogue_box, ["brash", "smart"]))
+	if dialogue_text.text != "Up the mountain pass at a gallop! Hold on to thy hat!":
+		failures.append(
+			"Expected a 'brash, smart' card to follow its first tag to the 'mountain' branch, got '%s'." % dialogue_text.text
 		)
 
 	# Let in-flight card fade tweens (from CardSwiper's selection animation)
@@ -127,11 +148,11 @@ func _initialize() -> void:
 
 
 ## Returns the index (into [param dialogue_box]'s response card inventory)
-## of the first card with hidden value [param value], or [code]-1[/code].
-func _card_index_with_value(dialogue_box: Control, value: int) -> int:
+## of the first card whose tags are exactly [param tags], or [code]-1[/code].
+func _card_index_with_tags(dialogue_box: Control, tags: Array) -> int:
 	var cards: Array[Dictionary] = dialogue_box.response_cards
 	for i in cards.size():
-		if int(cards[i]["value"]) == value:
+		if Array(cards[i]["tags"]) == tags:
 			return i
 	return -1
 

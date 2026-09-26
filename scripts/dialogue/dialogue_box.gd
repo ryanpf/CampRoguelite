@@ -6,12 +6,16 @@
 ## Conversations may branch: when playback reaches a branch segment (see
 ## [DialogueParser]), a [CardSwiper] is shown alongside the still-visible
 ## dialogue text/speaker tab, holding the player's inventory of response
-## cards (see [ResponseCardParser] and [member response_cards]). Each card
-## shows only its text; its value (1-5) stays hidden. Tapping/clicking to
-## advance is disabled until the player plays a card (double-tap/
-## double-click, per [CardSwiper]), at which point playback jumps to the
-## target of the branch option matching that card's hidden value (see
-## [method DialogueParser.find_option_for_value]).
+## cards (see [ResponseCardParser] and [member response_cards]). Tapping/
+## clicking to advance is disabled until the player plays a card (double-
+## tap/double-click, per [CardSwiper]), at which point playback jumps to the
+## target of the branch option matching that card's tags (see [method
+## DialogueParser.find_option_for_tags]), or to the fallback option if none
+## matches.
+##
+## With [member show_debug_tags] on, each card also shows its tags, and a
+## label above the cards lists every option at the fork with its tags and
+## target.
 ##
 ## Branch responses have a visible time limit ([member
 ## branch_timeout_seconds], overridable per-branch with a "timeout" key on
@@ -45,11 +49,16 @@ const END_TARGET := "end"
 ## with a "timeout" key on the branch segment (see [DialogueParser]).
 @export var branch_timeout_seconds: float = 10.0
 
+## Debug aid: shows each response card's tags on the card, and lists every
+## branch option's tags and target at a dialogue fork.
+@export var show_debug_tags: bool = true
+
 @onready var speaker_label: Label = $SpeakerTab/SpeakerLabel
 @onready var speaker_portrait: TextureRect = $SpeakerPortrait
 @onready var dialogue_text: RichTextLabel = $DialogueBox/DialogueText
 @onready var branch_options: CardSwiper = $BranchOptions
 @onready var branch_timeout_label: Label = $BranchTimeoutLabel
+@onready var branch_debug_label: Label = $BranchDebugLabel
 @onready var branch_timer: Timer = $BranchTimer
 
 var _segments: Array[Dictionary] = []
@@ -57,7 +66,7 @@ var _characters: Dictionary = {}
 var _index: int = -1
 
 ## The player's inventory of response cards, shaped like {"text": String,
-## "value": int} (see [ResponseCardParser]), offered as the cards at every
+## "tags": PackedStringArray} (see [ResponseCardParser]), offered as the cards at every
 ## branch node. Loaded by [method start_conversation].
 var response_cards: Array[Dictionary] = []
 
@@ -88,6 +97,7 @@ func _ready() -> void:
 	branch_options.card_selected.connect(_on_branch_option_selected)
 	branch_options.visible = false
 	branch_timeout_label.visible = false
+	branch_debug_label.visible = false
 	branch_timer.one_shot = true
 	branch_timer.timeout.connect(_on_branch_timer_timeout)
 
@@ -128,7 +138,7 @@ func advance() -> void:
 
 ## Plays response card [param index] (into [member response_cards]) as if
 ## its card had been double-tapped/double-clicked, jumping playback to the
-## target of the branch option matching its hidden value. Does nothing if
+## target of the branch option matching its tags. Does nothing if
 ## the current segment is not a branch awaiting selection, or if [param
 ## index] is out of range.
 func play_response_card(index: int) -> void:
@@ -182,13 +192,10 @@ func _show_branch(segment: Dictionary) -> void:
 	var options: Array = segment.get("options", [])
 	var cards: Array[Control] = []
 	for response_card in response_cards:
-		cards.append(_build_response_card(str(response_card.get("text", ""))))
-	_branch_timeout_option_index = -1
-	for i in options.size():
-		if DialogueParser.is_special_option(options[i]):
-			_branch_timeout_option_index = i
-	if _branch_timeout_option_index == -1 and not options.is_empty():
-		_branch_timeout_option_index = 0
+		cards.append(_build_response_card(response_card))
+	_branch_timeout_option_index = DialogueParser.find_fallback_option(options)
+	branch_debug_label.visible = show_debug_tags
+	branch_debug_label.text = _describe_branch_options(options)
 	# [method CardSwiper.set_cards] itself clears out the previous deck; do
 	# so here rather than as part of hiding the branch UI (in [method
 	# _set_branch_active]) so a just-selected card isn't freed out from
@@ -217,16 +224,38 @@ func _start_branch_timer(segment: Dictionary) -> void:
 	branch_timeout_label.text = str(ceili(timeout))
 
 
-func _build_response_card(text: String) -> Control:
+## Debug text listing each of [param options] (a branch segment's
+## "options") as "tags -> target", marking the timeout/fallback option.
+func _describe_branch_options(options: Array) -> String:
+	var parts: PackedStringArray = []
+	for i in options.size():
+		var tags := ResponseCardParser.parse_tags(options[i])
+		var tag_text := ", ".join(tags) if not tags.is_empty() else "(no tags)"
+		if i == _branch_timeout_option_index:
+			tag_text += " / (timeout)"
+		parts.append("%s -> %s" % [tag_text, str(options[i].get("target", ""))])
+	return "Branches: " + " | ".join(parts)
+
+
+func _build_response_card(response_card: Dictionary) -> Control:
 	var card := Panel.new()
 	var label := Label.new()
-	label.text = text
+	label.text = str(response_card.get("text", ""))
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.set_anchors_preset(Control.PRESET_FULL_RECT)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(label)
+	if show_debug_tags:
+		var tags_label := Label.new()
+		tags_label.text = "[%s]" % ", ".join(response_card.get("tags", PackedStringArray()))
+		tags_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		tags_label.add_theme_font_size_override("font_size", 12)
+		tags_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+		tags_label.offset_top = -24.0
+		tags_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.add_child(tags_label)
 	return card
 
 
@@ -243,6 +272,7 @@ func _set_branch_active(active: bool) -> void:
 	if not active:
 		branch_timer.stop()
 		branch_timeout_label.visible = false
+		branch_debug_label.visible = false
 
 
 ## Called when [member branch_timer] runs out while a branch's cards are
@@ -255,20 +285,24 @@ func _on_branch_timer_timeout() -> void:
 
 
 ## Called when response card [param index] is played: follows the current
-## branch's option matching that card's hidden value.
+## branch's option matching that card's tags, or the fallback option (see
+## [member _branch_timeout_option_index]) if none matches.
 func _on_branch_option_selected(index: int) -> void:
 	if not _awaiting_branch_selection:
 		return
 	if index < 0 or index >= response_cards.size():
 		return
-	var value := int(response_cards[index].get("value", 0))
+	var tags: PackedStringArray = response_cards[index].get("tags", PackedStringArray())
 	var options: Array = _segments[_index].get("options", [])
-	_follow_branch_option(DialogueParser.find_option_for_value(options, value))
+	var option_index := DialogueParser.find_option_for_tags(options, tags)
+	if option_index == -1:
+		option_index = _branch_timeout_option_index
+	_follow_branch_option(option_index)
 
 
 ## Jumps playback to the target of the current branch segment's option
 ## [param option_index], or falls through to the following segment if it's
-## out of range (e.g. no option matched a played card's value).
+## out of range (e.g. the branch has no options at all).
 func _follow_branch_option(option_index: int) -> void:
 	if _index < 0 or _index >= _segments.size():
 		return

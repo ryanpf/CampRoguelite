@@ -1,9 +1,9 @@
 ## Headless smoke test for [DialogueParser]'s branch support: parses a
-## conversation with a branch node (nested "options" list keyed by hidden
-## response card value) and segments converging back onto a shared segment
-## via "next", verifies the resulting segments are shaped as expected, and
-## that response card values resolve to the matching (or nearest) option.
-## Also checks [ResponseCardParser] parses a response card inventory.
+## conversation with a branch node (nested "options" list keyed by response
+## card tags) and segments converging back onto a shared segment via "next",
+## verifies the resulting segments are shaped as expected, and that response
+## card tags resolve to the matching option (or the fallback). Also checks
+## [ResponseCardParser] parses a response card inventory.
 ##
 ## Run with:
 ##
@@ -22,9 +22,9 @@ func _initialize() -> void:
   text: "Which path shall we take?"
 - branch: true
   options:
-    - value: 5
+    - tags: brash
       target: mountain
-    - value: 2
+    - tags: [Timid, easygoing]
       target: river
     - special: true
       target: indecisive
@@ -50,28 +50,33 @@ func _initialize() -> void:
 			var options: Array = segments[1].get("options", [])
 			if options.size() != 3:
 				failures.append("Expected branch segment to have 3 options, got %d." % options.size())
-			elif options[0].get("value") != "5" or options[0].get("target") != "mountain":
-				failures.append("Expected first option to be value 5 targeting 'mountain', got %s." % [options[0]])
+			elif options[0].get("tags") != "brash" or options[0].get("target") != "mountain":
+				failures.append("Expected first option to be tagged 'brash' targeting 'mountain', got %s." % [options[0]])
 			elif options[1].get("target") != "river":
 				failures.append("Expected second option to target 'river', got %s." % [options[1]])
 			elif not DialogueParser.is_special_option(options[2]):
 				failures.append("Expected third option to be special, got %s." % [options[2]])
 			else:
-				# Exact matches, then nearest-value fallbacks (1 and 3 are
-				# nearest 2, 4 is nearest 5). The value-less special option
-				# is never matched by a card.
-				var expected := {1: 1, 2: 1, 3: 1, 4: 0, 5: 0}
-				for value in expected:
-					var index := DialogueParser.find_option_for_value(options, value)
-					if index != expected[value]:
+				var cases := [
+					[["brash"], 0],
+					[["timid"], 1],
+					[["easygoing"], 1],
+					# First card tag with any matching option wins.
+					[["smart", "easygoing", "brash"], 1],
+					# No matching option (the untagged special option is
+					# never matched by a card).
+					[["smart"], -1],
+				]
+				for case in cases:
+					var index := DialogueParser.find_option_for_tags(options, PackedStringArray(case[0]))
+					if index != case[1]:
 						failures.append(
-							"Expected value %d to resolve to option %d, got %d." % [value, expected[value], index]
+							"Expected tags %s to resolve to option %d, got %d." % [case[0], case[1], index]
 						)
-				var tie_options: Array = [{"value": "1"}, {"value": "5"}]
-				if DialogueParser.find_option_for_value(tie_options, 3) != 0:
-					failures.append("Expected a tie between nearest values to resolve to the lower one.")
-				if DialogueParser.find_option_for_value([{"special": "true"}], 3) != -1:
-					failures.append("Expected no match when no option has a value.")
+				if DialogueParser.find_fallback_option(options) != 2:
+					failures.append("Expected the special option to be the fallback.")
+				if DialogueParser.find_fallback_option(options.slice(0, 2)) != 0:
+					failures.append("Expected the first option to be the fallback when none is special.")
 
 		if segments[2].get("id") != "mountain" or segments[2].get("next") != "reunited":
 			failures.append("Expected segment 2 to be 'mountain' with next 'reunited', got %s." % [segments[2]])
@@ -81,20 +86,19 @@ func _initialize() -> void:
 
 	var cards := ResponseCardParser.parse("""
 - text: "Nope."
-  value: 1
-- text: "Missing value"
-- text: "Out of range"
-  value: 6
-- text: "YES!"
-  value: 5
+  tags: timid
+- text: "Missing tags"
+- text: "YES! Clever AND bold!"
+  tags: Brash,  smart ,
 """)
 	if cards.size() != 2:
 		failures.append("Expected 2 valid response cards, got %d." % cards.size())
-	elif cards[0] != {"text": "Nope.", "value": 1} or cards[1] != {"text": "YES!", "value": 5}:
+	elif cards[0]["text"] != "Nope." or Array(cards[0]["tags"]) != ["timid"] \
+			or Array(cards[1]["tags"]) != ["brash", "smart"]:
 		failures.append("Unexpected parsed response cards: %s." % [cards])
 
 	if failures.is_empty():
-		print("PASS: DialogueParser parses branch options, 'next' jump targets, and response card values.")
+		print("PASS: DialogueParser parses branch options, 'next' jump targets, and response card tags.")
 		quit(0)
 	else:
 		for failure in failures:

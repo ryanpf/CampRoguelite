@@ -23,22 +23,23 @@
 ##
 ## Responses aren't written into the conversation: the player instead plays
 ## one of the response cards from their inventory (see [ResponseCardParser]),
-## each with a hidden "value" from 1 to 5. Each option is a mapping with a
-## "value" (the hidden card value that triggers it) and a "target" (the id
-## to jump to when a card with that value is played), for example:
+## each carrying one or more "tags" such as "brash", "timid" or "smart".
+## Each option is a mapping with "tags" (the card tag(s) it responds to,
+## comma-separated) and a "target" (the id to jump to when a card with one
+## of those tags is played), for example:
 ##
 ## [codeblock]
 ## - id: crossroads
 ##   speaker: balaam
-##   text: "Shall we brave the mountain pass, or turn back for camp?"
+##   text: "Shall we brave the mountain pass, or scurry back to camp?"
 ## - branch: true
 ##   options:
-##     - value: 1
+##     - tags: timid
 ##       target: turn_back
-##     - value: 3
-##       target: river
-##     - value: 5
+##     - tags: brash
 ##       target: mountain
+##     - tags: smart, easygoing
+##       target: river
 ## - id: mountain
 ##   speaker: donkey
 ##   text: "The mountain air is thin here."
@@ -56,20 +57,20 @@
 ##   text: "Onward, regardless of the path taken."
 ## [/codeblock]
 ##
-## Since card values are hidden, the conversation's visible dialogue should
-## allude to what each value leads to (e.g. a cautious card turns back, a
-## bold one takes the mountain). A branch should ideally cover every value
-## from 1 to 5; a played card whose value has no option of its own follows
-## the option with the nearest value instead (the lower one, on a tie) - see
-## [method find_option_for_value].
+## The conversation's visible dialogue should allude to which kind of
+## response leads where (e.g. a timid card turns back, a brash one takes the
+## mountain). See [method find_option_for_tags] for how a played card picks
+## an option; a card matching no option at all follows the same fallback
+## option as the timeout below.
 ##
 ## A branch response has a visible time limit (see [DialogueBox]'s
 ## "branch_timeout_seconds", overridable per-branch with a "timeout" key on
 ## the "branch: true" segment) after which one option is chosen
 ## automatically. That option is the one flagged "special: true"; if no
 ## option is flagged, the first option is used as the automatic fallback. A
-## special option may omit "value" entirely, so it's reachable only by
-## letting the timer run out (i.e. by being indecisive).
+## special option may omit "tags" entirely, so no card ever picks it
+## directly and it's reached only by letting the timer run out (i.e. by
+## being indecisive) or by playing a card that matches nothing.
 class_name DialogueParser
 extends RefCounted
 
@@ -199,27 +200,28 @@ static func is_special_option(option: Dictionary) -> bool:
 
 
 ## Returns the index (into [param options], a branch segment's "options"
-## list) of the option triggered by a response card with hidden value
-## [param value]: the option with exactly that "value" if there is one,
-## otherwise the one with the nearest value (the lower one, on a tie).
-## Options without a valid "value" (see [method
-## ResponseCardParser.parse_value]) are never matched. Returns [code]-1[/code]
-## if no option has a valid value.
-static func find_option_for_value(options: Array, value: int) -> int:
-	var best_index := -1
-	var best_distance := 0
-	var best_value := 0
+## list) of the option triggered by a response card with [param card_tags]
+## (see [method ResponseCardParser.parse_tags]), or [code]-1[/code] if none
+## matches. The card's tags are tried in order, so its first tag that any
+## option responds to wins; among options sharing that tag, the first listed
+## wins.
+static func find_option_for_tags(options: Array, card_tags: PackedStringArray) -> int:
+	for tag in card_tags:
+		for i in options.size():
+			if ResponseCardParser.parse_tags(options[i]).has(tag):
+				return i
+	return -1
+
+
+## Returns the index (into [param options], a branch segment's "options"
+## list) of the fallback option followed when a branch times out or a
+## played card matches no option: the one flagged "special: true", else the
+## first option, or [code]-1[/code] if [param options] is empty.
+static func find_fallback_option(options: Array) -> int:
 	for i in options.size():
-		var option_value := ResponseCardParser.parse_value(options[i])
-		if option_value == -1:
-			continue
-		var distance := absi(option_value - value)
-		if best_index == -1 or distance < best_distance \
-				or (distance == best_distance and option_value < best_value):
-			best_index = i
-			best_distance = distance
-			best_value = option_value
-	return best_index
+		if is_special_option(options[i]):
+			return i
+	return 0 if not options.is_empty() else -1
 
 
 static func _unquote(value: String) -> String:

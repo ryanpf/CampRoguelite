@@ -2,29 +2,28 @@
 ## human-readable YAML subset as [DialogueParser].
 ##
 ## Response cards are what the player plays at a conversation's branch nodes
-## (see [DialogueParser]): each card shows only its "text" to the player,
-## while its "value" (an integer from [constant MIN_VALUE] to [constant
-## MAX_VALUE]) stays hidden and decides which branch the conversation
-## follows. A card's text should allude to its hidden value, for example:
+## (see [DialogueParser]): each card shows its "text" to the player, while
+## its "tags" (a comma-separated list of free-form words like "brash",
+## "timid" or "smart") decide which branch the conversation follows. A
+## card's text should allude to its tags, for example:
 ##
 ## [codeblock]
-## - text: "Nope. Not happening."
-##   value: 1
-## - text: "Let's do it!"
-##   value: 4
+## - text: "Nope. Absolutely not."
+##   tags: timid
+## - text: "Bold AND clever: shortcut over the ridge!"
+##   tags: brash, smart
 ## [/codeblock]
+##
+## A card's tags are listed in priority order: when played, its first tag
+## that any branch option responds to wins (see [method
+## DialogueParser.find_option_for_tags]).
 class_name ResponseCardParser
 extends RefCounted
 
-## Lowest hidden value a response card (or branch option) can have.
-const MIN_VALUE := 1
-
-## Highest hidden value a response card (or branch option) can have.
-const MAX_VALUE := 5
-
 
 ## Loads the response card inventory at [param path] and returns an [Array]
-## of [Dictionary] entries shaped like {"text": String, "value": int}.
+## of [Dictionary] entries shaped like {"text": String, "tags":
+## PackedStringArray}.
 static func load_cards(path: String) -> Array[Dictionary]:
 	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
@@ -35,31 +34,34 @@ static func load_cards(path: String) -> Array[Dictionary]:
 
 
 ## Parses raw YAML-subset [param text] into an [Array] of response cards
-## shaped like {"text": String, "value": int}. Entries without a value in
-## the valid range are skipped with an error, since they could never
-## trigger a branch.
+## shaped like {"text": String, "tags": PackedStringArray}. Entries without
+## any tags are skipped with an error, since they could never trigger a
+## branch of their own.
 static func parse(text: String) -> Array[Dictionary]:
 	var cards: Array[Dictionary] = []
 	for entry in DialogueParser.parse(text):
-		var value := parse_value(entry)
-		if value == -1:
-			push_error("ResponseCardParser: skipping card with missing/invalid value: %s" % [entry])
+		var tags := parse_tags(entry)
+		if tags.is_empty():
+			push_error("ResponseCardParser: skipping card with no tags: %s" % [entry])
 			continue
 		cards.append({
 			"text": str(entry.get("text", "")),
-			"value": value,
+			"tags": tags,
 		})
 	return cards
 
 
-## Returns [param entry]'s "value" key (a response card or branch option) as
-## an integer, or [code]-1[/code] if it's missing or outside [constant
-## MIN_VALUE]..[constant MAX_VALUE].
-static func parse_value(entry: Dictionary) -> int:
-	var raw := str(entry.get("value", "")).strip_edges()
-	if not raw.is_valid_int():
-		return -1
-	var value := raw.to_int()
-	if value < MIN_VALUE or value > MAX_VALUE:
-		return -1
-	return value
+## Returns [param entry]'s "tags" key (a response card or branch option) as
+## a list of lowercase tags, in the order written. Accepts a plain
+## comma-separated list ("brash, smart") or a bracketed one ("[brash,
+## smart]"); empty entries are dropped.
+static func parse_tags(entry: Dictionary) -> PackedStringArray:
+	var raw := str(entry.get("tags", "")).strip_edges()
+	if raw.begins_with("[") and raw.ends_with("]"):
+		raw = raw.substr(1, raw.length() - 2)
+	var tags := PackedStringArray()
+	for tag in raw.split(","):
+		var cleaned := tag.strip_edges().to_lower()
+		if not cleaned.is_empty() and not tags.has(cleaned):
+			tags.append(cleaned)
+	return tags

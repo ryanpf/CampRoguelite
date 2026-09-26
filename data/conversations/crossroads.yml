@@ -1,31 +1,31 @@
 # Sample branching conversation exercising DialogueParser/DialogueBox
 # branch support: at the branch node the player plays one of their response
-# cards (data/response_cards.yml), and the card's hidden value (1-5) picks
-# the branch. Balaam's question lays out the choices from most timid (back
-# to camp) to most reckless (off the paths entirely), so the player can
-# match a card's tone to the outcome they want. Most branches converge back
-# onto a shared closing line via "next"; value 1 instead ends the
-# conversation early via the special "end" target.
+# cards (data/response_cards.yml), and the card's tags pick the branch.
+# Balaam's question hints at what each kind of response leads to: a timid
+# one heads back to camp, an easygoing one takes the gentle river road, a
+# smart one reads the map for a shortcut, and a brash one charges up the
+# mountain. Most branches converge back onto a shared closing line via
+# "next"; the timid branch instead ends the conversation early via the
+# special "end" target.
 #
-# The "indecisive" option has no value at all: it's flagged "special: true"
+# The "indecisive" option has no tags at all: it's flagged "special: true"
 # so it's only chosen if the branch's visible timeout (see
 # DialogueBox.branch_timeout_seconds) runs out before the player plays a
-# card - its line conveys that indecision itself is what turned Balaam back.
+# card (or if a played card matches none of the options) - its line
+# conveys that indecision itself is what turned Balaam back.
 - id: start
   speaker: balaam
-  text: "Which path shall we take? The gentle river road, the steep mountain pass... or back to camp, if thou hast not the stomach for it?"
+  text: "Which path shall we take? The river road is gentle, the mountain pass is wild, and the old map hides a shortcut, for those with wit to read it. Or shall we scurry back to camp?"
 - branch: true
   options:
-    - value: 1
+    - tags: timid
       target: refuse
-    - value: 2
+    - tags: easygoing
       target: river
-    - value: 3
-      target: either
-    - value: 4
+    - tags: smart
+      target: shortcut
+    - tags: brash
       target: mountain
-    - value: 5
-      target: cliffs
     - special: true
       target: indecisive
 - id: refuse
@@ -34,19 +34,15 @@
   next: end
 - id: river
   speaker: donkey
-  text: "The river road, then. Slow and gentle, as the saints intended."
+  text: "The river road, then. Slow and gentle, no need to fuss."
   next: reunited
-- id: either
+- id: shortcut
   speaker: donkey
-  text: "One path is as good as another. We shall follow the river and see where it leads."
+  text: "By the map, the old logging trail cuts an hour off. Clever beast, am I not?"
   next: reunited
 - id: mountain
   speaker: donkey
-  text: "The mountain pass! The air is thin up there, but oh, the view."
-  next: reunited
-- id: cliffs
-  speaker: donkey
-  text: "Paths are for the faint of heart! We climb the cliffs straight to the summit!"
+  text: "Up the mountain pass at a gallop! Hold on to thy hat!"
   next: reunited
 - id: indecisive
   speaker: donkey
