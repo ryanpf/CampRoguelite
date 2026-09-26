@@ -7,3 +7,11 @@
 - id: donkey
   name: Balaam's Donkey
   portrait: "res://data/art/Goblin.png"
+- id: kelly
+  name: Kelly
+  portrait: "res://data/art/Girl.png"
+# The player themself: speaks only through the response cards they play
+# (see a branch segment's "speaker" key in DialogueParser).
+- id: player
+  name: You
+  portrait: "res://data/art/Kid1.png"

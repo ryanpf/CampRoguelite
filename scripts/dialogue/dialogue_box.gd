@@ -24,6 +24,10 @@
 ## true" (or the first option, if none is flagged) is followed
 ## automatically, without any card being played.
 ##
+## If the branch segment names a "speaker", a played card's text is first
+## shown as that speaker's line (so the player's dialogue comes from the
+## cards they play), and the chosen option is followed on the next advance.
+##
 ## A segment's "next" (or a branch option's "target") may also be the
 ## special id "end" to finish the conversation immediately after that
 ## segment, regardless of what other segments follow it in the file - useful
@@ -84,6 +88,11 @@ var _awaiting_branch_selection: bool = false
 ## if the current segment is not a branch (or its options list is empty).
 var _branch_timeout_option_index: int = -1
 
+## Index (into the current branch segment's "options") of the option to
+## follow on the next advance, while a played card's text is shown as the
+## branch's "speaker" line, or [code]-1[/code] if no such line is showing.
+var _pending_branch_option_index: int = -1
+
 ## Whether a press is currently being tracked, waiting for its matching
 ## release. Guards against advancing twice per tap: by default Godot's
 ## "input_devices/pointing/emulate_mouse_from_touch" project setting makes a
@@ -121,6 +130,7 @@ func start_conversation(
 	_segments = DialogueParser.load_conversation(path)
 	_id_to_index = _build_id_index(_segments)
 	_index = -1
+	_pending_branch_option_index = -1
 	visible = not _segments.is_empty()
 	_advance_from_index(_index)
 
@@ -130,8 +140,15 @@ func start_conversation(
 ## the box and emits [signal conversation_finished] once the conversation is
 ## complete. Does nothing while a branch's cards are awaiting selection; use
 ## [method play_response_card] (or a card tap) to proceed past a branch.
+## While a played card is shown as the branch speaker's line, follows the
+## branch option that card chose instead.
 func advance() -> void:
 	if _awaiting_branch_selection:
+		return
+	if _pending_branch_option_index != -1:
+		var option_index := _pending_branch_option_index
+		_pending_branch_option_index = -1
+		_follow_branch_option(option_index)
 		return
 	_advance_from_index(_index)
 
@@ -287,17 +304,27 @@ func _on_branch_timer_timeout() -> void:
 
 ## Called when response card [param index] is played: follows the current
 ## branch's option matching that card's tags, or the fallback option (see
-## [member _branch_timeout_option_index]) if none matches.
+## [member _branch_timeout_option_index]) if none matches. If the branch
+## names a "speaker", the card's text is first shown as their line, and the
+## option is followed on the next advance instead.
 func _on_branch_option_selected(index: int) -> void:
 	if not _awaiting_branch_selection:
 		return
 	if index < 0 or index >= response_cards.size():
 		return
 	var tags: PackedStringArray = response_cards[index].get("tags", PackedStringArray())
-	var options: Array = _segments[_index].get("options", [])
+	var segment := _segments[_index]
+	var options: Array = segment.get("options", [])
 	var option_index := DialogueParser.find_option_for_tags(options, tags)
 	if option_index == -1:
 		option_index = _branch_timeout_option_index
+	if segment.has("speaker"):
+		_show_dialogue({
+			"speaker": segment["speaker"],
+			"text": response_cards[index].get("text", ""),
+		})
+		_pending_branch_option_index = option_index
+		return
 	_follow_branch_option(option_index)
 
 

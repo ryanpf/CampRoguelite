@@ -73,6 +73,13 @@
 ## directly and it's reached only by letting the timer run out (i.e. by
 ## being indecisive) or by playing a card that matches nothing (or has no
 ## tags).
+##
+## A branch segment may also have a "speaker" (typically the player's own
+## character id): the played card's text is then shown as that speaker's
+## line of dialogue, before jumping to the chosen option's target on the
+## next advance. This lets the player's side of a conversation come
+## entirely from the cards they play. Letting the timer run out plays no
+## card, so nothing is said and the timeout option is followed directly.
 class_name DialogueParser
 extends RefCounted
 
