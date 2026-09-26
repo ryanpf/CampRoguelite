@@ -18,21 +18,27 @@
 ## jump target, and an optional "next" key jumping to a named segment instead
 ## of falling through to the following one (useful to have diverging
 ## branches converge back onto a shared segment). A segment with a "branch:
-## true" key and a nested "options" list presents a choice instead of a line
-## of dialogue; each option is a mapping with its own "text" (shown on a
-## card) and "target" (the id to jump to when that card is selected), for
-## example:
+## true" key and a nested "options" list asks the player to respond instead
+## of showing a line of dialogue.
+##
+## Responses aren't written into the conversation: the player instead plays
+## one of the response cards from their inventory (see [ResponseCardParser]),
+## each with a hidden "value" from 1 to 5. Each option is a mapping with a
+## "value" (the hidden card value that triggers it) and a "target" (the id
+## to jump to when a card with that value is played), for example:
 ##
 ## [codeblock]
 ## - id: crossroads
 ##   speaker: balaam
-##   text: "Which path shall we take?"
+##   text: "Shall we brave the mountain pass, or turn back for camp?"
 ## - branch: true
 ##   options:
-##     - text: "Take the mountain pass"
-##       target: mountain
-##     - text: "Take the river road"
+##     - value: 1
+##       target: turn_back
+##     - value: 3
 ##       target: river
+##     - value: 5
+##       target: mountain
 ## - id: mountain
 ##   speaker: donkey
 ##   text: "The mountain air is thin here."
@@ -41,16 +47,29 @@
 ##   speaker: donkey
 ##   text: "The river runs swift and cold."
 ##   next: reunited
+## - id: turn_back
+##   speaker: donkey
+##   text: "Back to camp it is, then."
+##   next: end
 ## - id: reunited
 ##   speaker: balaam
 ##   text: "Onward, regardless of the path taken."
 ## [/codeblock]
 ##
+## Since card values are hidden, the conversation's visible dialogue should
+## allude to what each value leads to (e.g. a cautious card turns back, a
+## bold one takes the mountain). A branch should ideally cover every value
+## from 1 to 5; a played card whose value has no option of its own follows
+## the option with the nearest value instead (the lower one, on a tie) - see
+## [method find_option_for_value].
+##
 ## A branch response has a visible time limit (see [DialogueBox]'s
 ## "branch_timeout_seconds", overridable per-branch with a "timeout" key on
 ## the "branch: true" segment) after which one option is chosen
 ## automatically. That option is the one flagged "special: true"; if no
-## option is flagged, the first option is used as the automatic fallback.
+## option is flagged, the first option is used as the automatic fallback. A
+## special option may omit "value" entirely, so it's reachable only by
+## letting the timer run out (i.e. by being indecisive).
 class_name DialogueParser
 extends RefCounted
 
@@ -177,6 +196,30 @@ static func is_branch(segment: Dictionary) -> bool:
 ## the class description).
 static func is_special_option(option: Dictionary) -> bool:
 	return str(option.get("special", "")).to_lower() == "true"
+
+
+## Returns the index (into [param options], a branch segment's "options"
+## list) of the option triggered by a response card with hidden value
+## [param value]: the option with exactly that "value" if there is one,
+## otherwise the one with the nearest value (the lower one, on a tie).
+## Options without a valid "value" (see [method
+## ResponseCardParser.parse_value]) are never matched. Returns [code]-1[/code]
+## if no option has a valid value.
+static func find_option_for_value(options: Array, value: int) -> int:
+	var best_index := -1
+	var best_distance := 0
+	var best_value := 0
+	for i in options.size():
+		var option_value := ResponseCardParser.parse_value(options[i])
+		if option_value == -1:
+			continue
+		var distance := absi(option_value - value)
+		if best_index == -1 or distance < best_distance \
+				or (distance == best_distance and option_value < best_value):
+			best_index = i
+			best_distance = distance
+			best_value = option_value
+	return best_index
 
 
 static func _unquote(value: String) -> String:

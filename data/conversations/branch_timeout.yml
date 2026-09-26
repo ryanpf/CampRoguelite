@@ -1,21 +1,21 @@
 # Sample branching conversation exercising DialogueBox's branch response
 # timeout: the branch node overrides the default timeout down to a fraction
 # of a second (via "timeout") so tests can wait it out quickly, and flags
-# the "Turn back" option "special: true" so it is the one selected
-# automatically once that timeout runs out without a player selection.
+# the value-less "turn_back" option "special: true" so it is the one
+# followed automatically once that timeout runs out without the player
+# playing a response card.
 - id: start
   speaker: balaam
-  text: "Which path shall we take?"
+  text: "Shall we brave the mountain pass, or take the easy river road?"
 - branch: true
   timeout: 0.05
   options:
-    - text: "Take the mountain pass"
-      target: mountain
-    - text: "Take the river road"
+    - value: 2
       target: river
-    - text: "Turn back for camp"
+    - value: 4
+      target: mountain
+    - special: true
       target: turn_back
-      special: true
 - id: mountain
   speaker: donkey
   text: "The mountain air is thin here."

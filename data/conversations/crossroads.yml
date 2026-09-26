@@ -1,34 +1,54 @@
 # Sample branching conversation exercising DialogueParser/DialogueBox
-# branch support: a branch node offers a card per option, and selecting one
-# continues the conversation on the corresponding branch, converging back
-# onto a shared closing line via "next". The "Turn back" option is flagged
-# "special: true", so it's also the option chosen automatically if the
-# branch's visible timeout (see DialogueBox.branch_timeout_seconds) runs out
-# before the player picks a card - its line conveys that indecision itself
-# is what turned Balaam back. It also demonstrates ending the conversation
-# early via the special "end" target, skipping the shared closing line
-# entirely.
+# branch support: at the branch node the player plays one of their response
+# cards (data/response_cards.yml), and the card's hidden value (1-5) picks
+# the branch. Balaam's question lays out the choices from most timid (back
+# to camp) to most reckless (off the paths entirely), so the player can
+# match a card's tone to the outcome they want. Most branches converge back
+# onto a shared closing line via "next"; value 1 instead ends the
+# conversation early via the special "end" target.
+#
+# The "indecisive" option has no value at all: it's flagged "special: true"
+# so it's only chosen if the branch's visible timeout (see
+# DialogueBox.branch_timeout_seconds) runs out before the player plays a
+# card - its line conveys that indecision itself is what turned Balaam back.
 - id: start
   speaker: balaam
-  text: "Which path shall we take?"
+  text: "Which path shall we take? The gentle river road, the steep mountain pass... or back to camp, if thou hast not the stomach for it?"
 - branch: true
   options:
-    - text: "Take the mountain pass"
-      target: mountain
-    - text: "Take the river road"
+    - value: 1
+      target: refuse
+    - value: 2
       target: river
-    - text: "Turn back for camp"
-      target: turn_back
-      special: true
-- id: mountain
+    - value: 3
+      target: either
+    - value: 4
+      target: mountain
+    - value: 5
+      target: cliffs
+    - special: true
+      target: indecisive
+- id: refuse
   speaker: donkey
-  text: "The mountain air is thin here."
-  next: reunited
+  text: "Not one more hoof forward. Back to camp, and be quick about it."
+  next: end
 - id: river
   speaker: donkey
-  text: "The river runs swift and cold."
+  text: "The river road, then. Slow and gentle, as the saints intended."
   next: reunited
-- id: turn_back
+- id: either
+  speaker: donkey
+  text: "One path is as good as another. We shall follow the river and see where it leads."
+  next: reunited
+- id: mountain
+  speaker: donkey
+  text: "The mountain pass! The air is thin up there, but oh, the view."
+  next: reunited
+- id: cliffs
+  speaker: donkey
+  text: "Paths are for the faint of heart! We climb the cliffs straight to the summit!"
+  next: reunited
+- id: indecisive
   speaker: donkey
   text: "Too indecisive to choose a path, Balaam simply turns back for camp."
   next: end

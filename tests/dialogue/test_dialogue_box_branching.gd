@@ -2,16 +2,14 @@
 ##
 ## Loads the dialogue box scene, starts the "crossroads" branching
 ## conversation (see data/conversations/crossroads.yml), advances to the
-## branch node, verifies it shows a card-select UI with one card per option
-## alongside (not instead of) the still-visible dialogue text, selects the
-## second option, and verifies playback jumps to that option's target
-## segment and later converges back onto the shared closing line via its
-## "next". Also restarts the conversation and selects the "Turn back"
-## option (flagged "special: true", see
-## tests/dialogue/test_dialogue_box_branch_timeout.gd for the case where
-## it's chosen automatically by timing out instead) to verify its
-## "next: end" ends the conversation immediately rather than converging
-## onto the shared closing line.
+## branch node, verifies it shows a card-select UI with one card per
+## response card in the player's inventory (see data/response_cards.yml)
+## alongside (not instead of) the still-visible dialogue text, plays a card
+## with hidden value 2, and verifies playback jumps to the value-2 option's
+## target segment and later converges back onto the shared closing line via
+## its "next". Also restarts the conversation and plays a value-1 card to
+## verify its branch's "next: end" ends the conversation immediately rather
+## than converging onto the shared closing line.
 ##
 ## The project must have imported its resources at least once (e.g. via a
 ## prior editor run, or `godot --headless --import`). Run with:
@@ -44,7 +42,7 @@ func _initialize() -> void:
 	var branch_options: CardSwiper = dialogue_box.get_node("BranchOptions")
 	var dialogue_panel: Panel = dialogue_box.get_node("DialogueBox")
 
-	if dialogue_text.text != "Which path shall we take?":
+	if not dialogue_text.text.begins_with("Which path shall we take?"):
 		failures.append("Expected the opening line, got '%s'." % dialogue_text.text)
 	if branch_options.visible:
 		failures.append("Expected branch options to be hidden before reaching the branch node.")
@@ -54,6 +52,13 @@ func _initialize() -> void:
 
 	if not branch_options.visible:
 		failures.append("Expected branch options to be visible at the branch node.")
+	var inventory_size: int = dialogue_box.response_cards.size()
+	if inventory_size == 0:
+		failures.append("Expected the player's response card inventory to be loaded.")
+	if branch_options.card_count() != inventory_size:
+		failures.append(
+			"Expected one card per response card in the inventory (%d), got %d." % [inventory_size, branch_options.card_count()]
+		)
 	if not dialogue_panel.visible:
 		failures.append("Expected the normal dialogue panel to stay visible alongside a branch's cards.")
 
@@ -63,14 +68,14 @@ func _initialize() -> void:
 	if not branch_options.visible:
 		failures.append("Expected tapping to be ignored while a branch's cards await selection.")
 
-	# Select the second option ("river").
-	dialogue_box.select_branch_option(1)
+	# Play a response card with hidden value 2 (the "river" branch).
+	dialogue_box.play_response_card(_card_index_with_value(dialogue_box, 2))
 
 	if branch_options.visible:
-		failures.append("Expected branch options to hide again after a selection.")
-	if dialogue_text.text != "The river runs swift and cold.":
+		failures.append("Expected branch options to hide again after a card is played.")
+	if dialogue_text.text != "The river road, then. Slow and gentle, as the saints intended.":
 		failures.append(
-			"Expected playback to jump to the 'river' branch, got '%s'." % dialogue_text.text
+			"Expected a value-2 card to jump to the 'river' branch, got '%s'." % dialogue_text.text
 		)
 
 	# The "river" segment's "next: reunited" should converge back onto the
@@ -88,18 +93,18 @@ func _initialize() -> void:
 	if dialogue_box.visible:
 		failures.append("Expected the conversation to finish (hide) after its natural ending line.")
 
-	# Restart the conversation and this time pick the "Turn back" option,
-	# whose target segment ends with "next: end" - verify that ends the
+	# Restart the conversation and this time play a value-1 card, whose
+	# "refuse" branch ends with "next: end" - verify that ends the
 	# conversation immediately, skipping the shared closing line entirely.
 	dialogue_box.start_conversation(CONVERSATION_PATH)
 	_simulate_tap(dialogue_box)
-	dialogue_box.select_branch_option(2)
-	if dialogue_text.text != "Too indecisive to choose a path, Balaam simply turns back for camp.":
+	dialogue_box.play_response_card(_card_index_with_value(dialogue_box, 1))
+	if dialogue_text.text != "Not one more hoof forward. Back to camp, and be quick about it.":
 		failures.append(
-			"Expected playback to jump to the 'turn_back' branch, got '%s'." % dialogue_text.text
+			"Expected a value-1 card to jump to the 'refuse' branch, got '%s'." % dialogue_text.text
 		)
 	if not dialogue_box.visible:
-		failures.append("Expected the dialogue box to still be visible on the 'turn_back' line.")
+		failures.append("Expected the dialogue box to still be visible on the 'refuse' line.")
 
 	_simulate_tap(dialogue_box)
 	if dialogue_box.visible:
@@ -119,6 +124,16 @@ func _initialize() -> void:
 		for failure in failures:
 			printerr("FAIL: %s" % failure)
 		quit(1)
+
+
+## Returns the index (into [param dialogue_box]'s response card inventory)
+## of the first card with hidden value [param value], or [code]-1[/code].
+func _card_index_with_value(dialogue_box: Control, value: int) -> int:
+	var cards: Array[Dictionary] = dialogue_box.response_cards
+	for i in cards.size():
+		if int(cards[i]["value"]) == value:
+			return i
+	return -1
 
 
 ## Simulates a single physical tap/click by delivering both an

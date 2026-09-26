@@ -1,0 +1,18 @@
+# The player's inventory of response cards, played at a conversation's
+# branch nodes (see scripts/dialogue/response_card_parser.gd). Only a card's
+# "text" is shown to the player; its "value" (1-5) is hidden and decides
+# which branch the conversation follows. Values run from timid/unwilling (1)
+# up to bold/reckless (5), and each card's text should hint at where it
+# falls on that scale. Several cards may share a value.
+- text: "Nope. Absolutely not."
+  value: 1
+- text: "Um... maybe the easy way?"
+  value: 2
+- text: "Eh, whatever you think."
+  value: 3
+- text: "Sure, sounds fun!"
+  value: 4
+- text: "I'm in! Lead the way!"
+  value: 4
+- text: "YES! Go big or go home!"
+  value: 5
