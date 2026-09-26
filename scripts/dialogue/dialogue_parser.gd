@@ -18,20 +18,27 @@
 ## jump target, and an optional "next" key jumping to a named segment instead
 ## of falling through to the following one (useful to have diverging
 ## branches converge back onto a shared segment). A segment with a "branch:
-## true" key and a nested "options" list presents a choice instead of a line
-## of dialogue; each option is a mapping with its own "text" (shown on a
-## card) and "target" (the id to jump to when that card is selected), for
-## example:
+## true" key and a nested "options" list asks the player to respond instead
+## of showing a line of dialogue.
+##
+## Responses aren't written into the conversation: the player instead plays
+## one of the response cards from their inventory (see [ResponseCardParser]),
+## each carrying one or more "tags" such as "brash", "timid" or "smart".
+## Each option is a mapping with "tags" (the card tag(s) it responds to,
+## comma-separated) and a "target" (the id to jump to when a card with one
+## of those tags is played), for example:
 ##
 ## [codeblock]
 ## - id: crossroads
 ##   speaker: balaam
-##   text: "Which path shall we take?"
+##   text: "Shall we brave the mountain pass, or scurry back to camp?"
 ## - branch: true
 ##   options:
-##     - text: "Take the mountain pass"
+##     - tags: timid
+##       target: turn_back
+##     - tags: brash
 ##       target: mountain
-##     - text: "Take the river road"
+##     - tags: smart, easygoing
 ##       target: river
 ## - id: mountain
 ##   speaker: donkey
@@ -41,16 +48,31 @@
 ##   speaker: donkey
 ##   text: "The river runs swift and cold."
 ##   next: reunited
+## - id: turn_back
+##   speaker: donkey
+##   text: "Back to camp it is, then."
+##   next: end
 ## - id: reunited
 ##   speaker: balaam
 ##   text: "Onward, regardless of the path taken."
 ## [/codeblock]
 ##
+## The conversation's visible dialogue should allude to which kind of
+## response leads where (e.g. a timid card turns back, a brash one takes the
+## mountain). See [method find_option_for_tags] for how a played card picks
+## an option; a card matching no option at all (including a card with no
+## tags) follows the same fallback option as the timeout below.
+##
 ## A branch response has a visible time limit (see [DialogueBox]'s
 ## "branch_timeout_seconds", overridable per-branch with a "timeout" key on
 ## the "branch: true" segment) after which one option is chosen
-## automatically. That option is the one flagged "special: true"; if no
-## option is flagged, the first option is used as the automatic fallback.
+## automatically. That option is the one flagged "timeout: true" (not to be
+## confused with the branch segment's own "timeout" duration); if no
+## option is flagged, the first option is used as the automatic fallback. A
+## timeout option may omit "tags" entirely, so no card ever picks it
+## directly and it's reached only by letting the timer run out (i.e. by
+## being indecisive) or by playing a card that matches nothing (or has no
+## tags).
 class_name DialogueParser
 extends RefCounted
 
@@ -172,11 +194,37 @@ static func is_branch(segment: Dictionary) -> bool:
 
 
 ## Returns whether [param option] (one entry of a branch segment's "options"
-## list) is flagged "special: true" - the option automatically selected if
+## list) is flagged "timeout: true" - the option automatically selected if
 ## the branch's visible time limit expires before the player picks one (see
 ## the class description).
-static func is_special_option(option: Dictionary) -> bool:
-	return str(option.get("special", "")).to_lower() == "true"
+static func is_timeout_option(option: Dictionary) -> bool:
+	return str(option.get("timeout", "")).to_lower() == "true"
+
+
+## Returns the index (into [param options], a branch segment's "options"
+## list) of the option triggered by a response card with [param card_tags]
+## (see [method ResponseCardParser.parse_tags]), or [code]-1[/code] if none
+## matches (always the case for a card with no tags). The card's tags are
+## tried in order, so its first tag that any
+## option responds to wins; among options sharing that tag, the first listed
+## wins.
+static func find_option_for_tags(options: Array, card_tags: PackedStringArray) -> int:
+	for tag in card_tags:
+		for i in options.size():
+			if ResponseCardParser.parse_tags(options[i]).has(tag):
+				return i
+	return -1
+
+
+## Returns the index (into [param options], a branch segment's "options"
+## list) of the fallback option followed when a branch times out or a
+## played card matches no option: the one flagged "timeout: true", else the
+## first option, or [code]-1[/code] if [param options] is empty.
+static func find_fallback_option(options: Array) -> int:
+	for i in options.size():
+		if is_timeout_option(options[i]):
+			return i
+	return 0 if not options.is_empty() else -1
 
 
 static func _unquote(value: String) -> String:

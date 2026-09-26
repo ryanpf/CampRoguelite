@@ -1,34 +1,51 @@
 # Sample branching conversation exercising DialogueParser/DialogueBox
-# branch support: a branch node offers a card per option, and selecting one
-# continues the conversation on the corresponding branch, converging back
-# onto a shared closing line via "next". The "Turn back" option is flagged
-# "special: true", so it's also the option chosen automatically if the
-# branch's visible timeout (see DialogueBox.branch_timeout_seconds) runs out
-# before the player picks a card - its line conveys that indecision itself
-# is what turned Balaam back. It also demonstrates ending the conversation
-# early via the special "end" target, skipping the shared closing line
-# entirely.
+# branch support: at the branch node the player plays one of their response
+# cards (data/response_cards.yml), and the card's tags pick the branch.
+# Balaam's question hints at what each kind of response leads to: a timid
+# one heads back to camp, an easygoing one takes the gentle river road, a
+# smart one reads the map for a shortcut, and a brash one charges up the
+# mountain. Most branches converge back onto a shared closing line via
+# "next"; the timid branch instead ends the conversation early via the
+# special "end" target.
+#
+# The "indecisive" option has no tags at all: it's flagged "timeout: true"
+# so it's only chosen if the branch's visible timeout (see
+# DialogueBox.branch_timeout_seconds) runs out before the player plays a
+# card, or if a played card matches none of the options (such as the
+# untagged "Wait, what was the question?" card) - its line
+# conveys that indecision itself is what turned Balaam back.
 - id: start
   speaker: balaam
-  text: "Which path shall we take?"
+  text: "Which path shall we take? The river road is gentle, the mountain pass is wild, and the old map hides a shortcut, for those with wit to read it. Or shall we scurry back to camp?"
 - branch: true
   options:
-    - text: "Take the mountain pass"
-      target: mountain
-    - text: "Take the river road"
+    - tags: timid
+      target: refuse
+    - tags: easygoing
       target: river
-    - text: "Turn back for camp"
-      target: turn_back
-      special: true
-- id: mountain
+    - tags: smart
+      target: shortcut
+    - tags: brash
+      target: mountain
+    - timeout: true
+      target: indecisive
+- id: refuse
   speaker: donkey
-  text: "The mountain air is thin here."
-  next: reunited
+  text: "Not one more hoof forward. Back to camp, and be quick about it."
+  next: end
 - id: river
   speaker: donkey
-  text: "The river runs swift and cold."
+  text: "The river road, then. Slow and gentle, no need to fuss."
   next: reunited
-- id: turn_back
+- id: shortcut
+  speaker: donkey
+  text: "By the map, the old logging trail cuts an hour off. Clever beast, am I not?"
+  next: reunited
+- id: mountain
+  speaker: donkey
+  text: "Up the mountain pass at a gallop! Hold on to thy hat!"
+  next: reunited
+- id: indecisive
   speaker: donkey
   text: "Too indecisive to choose a path, Balaam simply turns back for camp."
   next: end

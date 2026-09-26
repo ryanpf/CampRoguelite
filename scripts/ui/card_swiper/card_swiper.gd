@@ -207,6 +207,11 @@ func clear_cards() -> void:
 	_clear_selection_state()
 
 
+## Number of cards in the current deck.
+func card_count() -> int:
+	return _cards.size()
+
+
 ## Index (into the current deck) of the card that is currently centered.
 func current_index() -> int:
 	if _cards.is_empty():

@@ -5,17 +5,24 @@
 ##
 ## Conversations may branch: when playback reaches a branch segment (see
 ## [DialogueParser]), a [CardSwiper] is shown alongside the still-visible
-## dialogue text/speaker tab, with one card per option; tapping/clicking to
-## advance is disabled until the player selects a card (double-tap/
-## double-click, per [CardSwiper]), at which point playback jumps to that
-## option's target segment.
+## dialogue text/speaker tab, holding the player's inventory of response
+## cards (see [ResponseCardParser] and [member response_cards]). Tapping/
+## clicking to advance is disabled until the player plays a card (double-
+## tap/double-click, per [CardSwiper]), at which point playback jumps to the
+## target of the branch option matching that card's tags (see [method
+## DialogueParser.find_option_for_tags]), or to the fallback option if none
+## matches (as is always the case for a card with no tags).
+##
+## With [member show_debug_tags] on, each card also shows its tags, and a
+## label above the cards lists every option at the fork with its tags and
+## target.
 ##
 ## Branch responses have a visible time limit ([member
 ## branch_timeout_seconds], overridable per-branch with a "timeout" key on
 ## the segment): a countdown is shown while the cards await selection, and
-## if it runs out before the player picks one, the option flagged "special:
-## true" (or the first option, if none is flagged) is selected automatically,
-## as if the player had picked it themselves.
+## if it runs out before the player plays one, the option flagged "timeout:
+## true" (or the first option, if none is flagged) is followed
+## automatically, without any card being played.
 ##
 ## A segment's "next" (or a branch option's "target") may also be the
 ## special id "end" to finish the conversation immediately after that
@@ -30,25 +37,38 @@ signal conversation_finished
 ## display names and portraits.
 const DEFAULT_CHARACTERS_PATH := "res://data/characters.yml"
 
+## Default response card inventory offered to the player at branch nodes.
+const DEFAULT_RESPONSE_CARDS_PATH := "res://data/response_cards.yml"
+
 ## Special "next"/branch option "target" id that ends the conversation
 ## immediately, regardless of the segment's position in the file.
 const END_TARGET := "end"
 
 ## Default time limit, in seconds, a branch's cards are shown before the
-## special/fallback option is selected automatically. Overridable per-branch
+## timeout/fallback option is selected automatically. Overridable per-branch
 ## with a "timeout" key on the branch segment (see [DialogueParser]).
 @export var branch_timeout_seconds: float = 10.0
+
+## Debug aid: shows each response card's tags on the card, and lists every
+## branch option's tags and target at a dialogue fork.
+@export var show_debug_tags: bool = true
 
 @onready var speaker_label: Label = $SpeakerTab/SpeakerLabel
 @onready var speaker_portrait: TextureRect = $SpeakerPortrait
 @onready var dialogue_text: RichTextLabel = $DialogueBox/DialogueText
 @onready var branch_options: CardSwiper = $BranchOptions
 @onready var branch_timeout_label: Label = $BranchTimeoutLabel
+@onready var branch_debug_label: Label = $BranchDebugLabel
 @onready var branch_timer: Timer = $BranchTimer
 
 var _segments: Array[Dictionary] = []
 var _characters: Dictionary = {}
 var _index: int = -1
+
+## The player's inventory of response cards, shaped like {"text": String,
+## "tags": PackedStringArray} (see [ResponseCardParser]), offered as the cards at every
+## branch node. Loaded by [method start_conversation].
+var response_cards: Array[Dictionary] = []
 
 ## Maps a segment's "id" (see [DialogueParser]) to its index in [member
 ## _segments], used to resolve branch "target"s and segment "next"s.
@@ -60,7 +80,7 @@ var _id_to_index: Dictionary = {}
 var _awaiting_branch_selection: bool = false
 
 ## Index (into the current branch segment's "options") of the option to
-## select automatically if [member branch_timer] runs out, or [code]-1[/code]
+## follow automatically if [member branch_timer] runs out, or [code]-1[/code]
 ## if the current segment is not a branch (or its options list is empty).
 var _branch_timeout_option_index: int = -1
 
@@ -77,6 +97,7 @@ func _ready() -> void:
 	branch_options.card_selected.connect(_on_branch_option_selected)
 	branch_options.visible = false
 	branch_timeout_label.visible = false
+	branch_debug_label.visible = false
 	branch_timer.one_shot = true
 	branch_timer.timeout.connect(_on_branch_timer_timeout)
 
@@ -87,9 +108,16 @@ func _process(_delta: float) -> void:
 
 
 ## Loads the conversation at [param path] and starts playing it back,
-## resolving speakers against the character file at [param characters_path].
-func start_conversation(path: String, characters_path: String = DEFAULT_CHARACTERS_PATH) -> void:
+## resolving speakers against the character file at [param characters_path]
+## and offering the response cards in [param response_cards_path] at branch
+## nodes.
+func start_conversation(
+	path: String,
+	characters_path: String = DEFAULT_CHARACTERS_PATH,
+	response_cards_path: String = DEFAULT_RESPONSE_CARDS_PATH
+) -> void:
 	_characters = CharacterParser.load_characters(characters_path)
+	response_cards = ResponseCardParser.load_cards(response_cards_path)
 	_segments = DialogueParser.load_conversation(path)
 	_id_to_index = _build_id_index(_segments)
 	_index = -1
@@ -101,18 +129,19 @@ func start_conversation(path: String, characters_path: String = DEFAULT_CHARACTE
 ## "next" segment id, jumps there instead - see [DialogueParser]), or hides
 ## the box and emits [signal conversation_finished] once the conversation is
 ## complete. Does nothing while a branch's cards are awaiting selection; use
-## [method select_branch_option] (or a card tap) to proceed past a branch.
+## [method play_response_card] (or a card tap) to proceed past a branch.
 func advance() -> void:
 	if _awaiting_branch_selection:
 		return
 	_advance_from_index(_index)
 
 
-## Selects branch option [param index] as if its card had been
-## double-tapped/double-clicked, jumping playback to that option's target
-## segment. Does nothing if the current segment is not a branch awaiting
-## selection, or if [param index] is out of range.
-func select_branch_option(index: int) -> void:
+## Plays response card [param index] (into [member response_cards]) as if
+## its card had been double-tapped/double-clicked, jumping playback to the
+## target of the branch option matching its tags. Does nothing if
+## the current segment is not a branch awaiting selection, or if [param
+## index] is out of range.
+func play_response_card(index: int) -> void:
 	if not _awaiting_branch_selection:
 		return
 	branch_options.select_card(index)
@@ -153,23 +182,20 @@ func _show_dialogue(segment: Dictionary) -> void:
 	dialogue_text.text = str(segment.get("text", ""))
 
 
-## Displays [param segment]'s "options" (see [DialogueParser]) as cards in
-## [member branch_options] alongside the still-visible dialogue text, until
-## one is selected (or, per [member branch_timer], the timeout option is
-## selected automatically). Tapping/clicking to advance past the dialogue
+## Displays the player's [member response_cards] as cards in [member
+## branch_options] alongside the still-visible dialogue text, until one is
+## played (or, per [member branch_timer], [param segment]'s timeout option
+## is followed automatically). Tapping/clicking to advance past the dialogue
 ## text stays disabled the whole time (see [member _awaiting_branch_selection]).
 func _show_branch(segment: Dictionary) -> void:
 	_set_branch_active(true)
 	var options: Array = segment.get("options", [])
 	var cards: Array[Control] = []
-	_branch_timeout_option_index = -1
-	for i in options.size():
-		var option: Dictionary = options[i]
-		cards.append(_build_option_card(str(option.get("text", ""))))
-		if DialogueParser.is_special_option(option):
-			_branch_timeout_option_index = i
-	if _branch_timeout_option_index == -1 and not options.is_empty():
-		_branch_timeout_option_index = 0
+	for response_card in response_cards:
+		cards.append(_build_response_card(response_card))
+	_branch_timeout_option_index = DialogueParser.find_fallback_option(options)
+	branch_debug_label.visible = show_debug_tags
+	branch_debug_label.text = _describe_branch_options(options)
 	# [method CardSwiper.set_cards] itself clears out the previous deck; do
 	# so here rather than as part of hiding the branch UI (in [method
 	# _set_branch_active]) so a just-selected card isn't freed out from
@@ -198,16 +224,39 @@ func _start_branch_timer(segment: Dictionary) -> void:
 	branch_timeout_label.text = str(ceili(timeout))
 
 
-func _build_option_card(text: String) -> Control:
+## Debug text listing each of [param options] (a branch segment's
+## "options") as "tags -> target", marking the timeout/fallback option.
+func _describe_branch_options(options: Array) -> String:
+	var parts: PackedStringArray = []
+	for i in options.size():
+		var tags := ResponseCardParser.parse_tags(options[i])
+		var tag_text := ", ".join(tags) if not tags.is_empty() else "(no tags)"
+		if i == _branch_timeout_option_index:
+			tag_text += " / (timeout)"
+		parts.append("%s -> %s" % [tag_text, str(options[i].get("target", ""))])
+	return "Branches: " + " | ".join(parts)
+
+
+func _build_response_card(response_card: Dictionary) -> Control:
 	var card := Panel.new()
 	var label := Label.new()
-	label.text = text
+	label.text = str(response_card.get("text", ""))
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.set_anchors_preset(Control.PRESET_FULL_RECT)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(label)
+	if show_debug_tags:
+		var tags_label := Label.new()
+		var tags: PackedStringArray = response_card.get("tags", PackedStringArray())
+		tags_label.text = "[%s]" % (", ".join(tags) if not tags.is_empty() else "no tags")
+		tags_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		tags_label.add_theme_font_size_override("font_size", 12)
+		tags_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+		tags_label.offset_top = -24.0
+		tags_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.add_child(tags_label)
 	return card
 
 
@@ -224,24 +273,44 @@ func _set_branch_active(active: bool) -> void:
 	if not active:
 		branch_timer.stop()
 		branch_timeout_label.visible = false
+		branch_debug_label.visible = false
 
 
 ## Called when [member branch_timer] runs out while a branch's cards are
-## still awaiting selection: selects [member _branch_timeout_option_index]
-## as if the player had picked that card themselves.
+## still awaiting selection: follows [member _branch_timeout_option_index]
+## without any card being played.
 func _on_branch_timer_timeout() -> void:
 	if not _awaiting_branch_selection or _branch_timeout_option_index == -1:
 		return
-	select_branch_option(_branch_timeout_option_index)
+	_follow_branch_option(_branch_timeout_option_index)
 
 
+## Called when response card [param index] is played: follows the current
+## branch's option matching that card's tags, or the fallback option (see
+## [member _branch_timeout_option_index]) if none matches.
 func _on_branch_option_selected(index: int) -> void:
+	if not _awaiting_branch_selection:
+		return
+	if index < 0 or index >= response_cards.size():
+		return
+	var tags: PackedStringArray = response_cards[index].get("tags", PackedStringArray())
+	var options: Array = _segments[_index].get("options", [])
+	var option_index := DialogueParser.find_option_for_tags(options, tags)
+	if option_index == -1:
+		option_index = _branch_timeout_option_index
+	_follow_branch_option(option_index)
+
+
+## Jumps playback to the target of the current branch segment's option
+## [param option_index], or falls through to the following segment if it's
+## out of range (e.g. the branch has no options at all).
+func _follow_branch_option(option_index: int) -> void:
 	if _index < 0 or _index >= _segments.size():
 		return
 	var options: Array = _segments[_index].get("options", [])
-	if index < 0 or index >= options.size():
-		return
-	var target := str(options[index].get("target", ""))
+	var target := ""
+	if option_index >= 0 and option_index < options.size():
+		target = str(options[option_index].get("target", ""))
 	_show_segment(_resolve_target(target, _index + 1))
 
 
