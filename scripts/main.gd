@@ -2,6 +2,9 @@ extends Control
 
 const EXAMPLE_CONVERSATION := "res://data/conversations/balaam_and_donkey.yml"
 const CROSSROADS_CONVERSATION := "res://data/conversations/crossroads.yml"
+const MEET_KELLY_CONVERSATION := "res://data/conversations/meeting_kelly.yml"
+const CHARACTERS := "res://data/characters.yml"
+const INTRODUCTION_RESPONSE_CARDS := "res://data/response_cards_introductions.yml"
 
 ## Background colors used to visually distinguish the demo's sample cards.
 const DEMO_CARD_COLORS: Array[Color] = [
@@ -17,6 +20,7 @@ const DEMO_CARD_COLORS: Array[Color] = [
 @onready var dialogue_box: Control = $DialogueBox
 @onready var card_swiper_demo_button: Button = $CardSwiperDemoButton
 @onready var crossroads_conversation_button: Button = $CrossroadsConversationButton
+@onready var meet_kelly_conversation_button: Button = $MeetKellyConversationButton
 @onready var card_swiper_demo: Control = $CardSwiperDemo
 @onready var card_swiper: CardSwiper = $CardSwiperDemo/CardSwiper
 @onready var card_swiper_close_button: Button = $CardSwiperDemo/CloseButton
@@ -37,6 +41,7 @@ func _ready() -> void:
 	dialogue_box.conversation_finished.connect(_on_conversation_finished)
 	card_swiper_demo_button.pressed.connect(_on_card_swiper_demo_button_pressed)
 	crossroads_conversation_button.pressed.connect(_on_crossroads_conversation_button_pressed)
+	meet_kelly_conversation_button.pressed.connect(_on_meet_kelly_conversation_button_pressed)
 	card_swiper_close_button.pressed.connect(_on_card_swiper_close_button_pressed)
 	card_swiper.card_selected.connect(_on_card_swiper_card_selected)
 	card_scale_slider.value = card_swiper.card_scale
@@ -52,20 +57,32 @@ func _ready() -> void:
 
 
 func _on_start_conversation_button_pressed() -> void:
-	start_conversation_button.visible = false
-	crossroads_conversation_button.visible = false
+	_set_conversation_buttons_visible(false)
 	dialogue_box.start_conversation(EXAMPLE_CONVERSATION)
 
 
 func _on_crossroads_conversation_button_pressed() -> void:
-	start_conversation_button.visible = false
-	crossroads_conversation_button.visible = false
+	_set_conversation_buttons_visible(false)
 	dialogue_box.start_conversation(CROSSROADS_CONVERSATION)
 
 
+func _on_meet_kelly_conversation_button_pressed() -> void:
+	_set_conversation_buttons_visible(false)
+	dialogue_box.start_conversation(
+		MEET_KELLY_CONVERSATION,
+		CHARACTERS,
+		INTRODUCTION_RESPONSE_CARDS
+	)
+
+
 func _on_conversation_finished() -> void:
-	start_conversation_button.visible = true
-	crossroads_conversation_button.visible = true
+	_set_conversation_buttons_visible(true)
+
+
+func _set_conversation_buttons_visible(buttons_visible: bool) -> void:
+	start_conversation_button.visible = buttons_visible
+	crossroads_conversation_button.visible = buttons_visible
+	meet_kelly_conversation_button.visible = buttons_visible
 
 
 func _on_card_swiper_demo_button_pressed() -> void:

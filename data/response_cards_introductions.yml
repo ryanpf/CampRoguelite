@@ -1,0 +1,24 @@
+# Response card deck for introductory conversations, like meeting a new
+# kid on the first day of camp (see data/conversations/meeting_kelly.yml).
+# Same format as data/response_cards.yml. Every card is offered at every
+# branch, so each is a general-purpose reaction rather than an answer to
+# one specific question - the conversation's lines are written so any of
+# them makes sense as a reply.
+- text: "No way, that's so cool!"
+  tags: friendly
+- text: "Um... hi. I mean, okay."
+  tags: shy
+- text: "*robot voice* GREETINGS, HUMAN."
+  tags: funny
+- text: "Pfft. I'm kind of a big deal back home."
+  tags: brash
+- text: "Did you know octopuses have three hearts?"
+  tags: smart, funny
+- text: "Wait, really? Tell me more!"
+  tags: curious, friendly
+- text: "Wow, that's crazy!"
+  tags: enthusiastic
+- text: "Oh, okay."
+  tags: acknowledge
+- text: "Is it almost lunchtime?"
+  tags: hungry

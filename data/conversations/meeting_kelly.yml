@@ -1,0 +1,180 @@
+# Introductory conversation: the player meets Kelly, a fellow 6th grader,
+# on the first day of camp. Kelly does all the talking in the conversation's
+# plain segments; the player speaks only through the response cards they
+# play from data/response_cards_introductions.yml. Each branch has
+# "speaker: player", so the played card's text is shown as the player's own
+# line before Kelly reacts to it.
+#
+# Not every card makes sense at every point: an off-topic or deflating
+# response can make Kelly lose interest and leave, ending the conversation
+# early (via "next: end") before she ever gets to the lunch invite. So does
+# silence - each branch's fallback ("timeout: true") option, followed when
+# the timer runs out, always has Kelly give up and walk off.
+- speaker: kelly
+  text: "Hey! You're new, right? I can tell 'cause you're holding your map upside down."
+- speaker: kelly
+  text: "I'm Kelly. Cabin 4. This is my THIRD summer here, so I basically know everything."
+- branch: true
+  speaker: player
+  options:
+    - tags: friendly
+      target: intro_friendly
+    - tags: shy
+      target: intro_shy
+    - tags: funny
+      target: intro_funny
+    - tags: brash
+      target: intro_brash
+    - tags: curious
+      target: intro_curious
+    - tags: enthusiastic
+      target: intro_enthusiastic
+    - tags: acknowledge
+      target: intro_acknowledge
+    - tags: hungry
+      target: intro_hungry
+    - timeout: true
+      target: intro_quiet
+- id: intro_friendly
+  speaker: kelly
+  text: "I know, right? Okay, you're officially my first new friend of the summer. No take-backs."
+  next: pudding
+- id: intro_shy
+  speaker: kelly
+  text: "It's okay, I was super nervous my first year too. I cried on the bus. Don't tell anyone."
+  next: pudding
+- id: intro_funny
+  speaker: kelly
+  text: "Hahaha, what?! You're so weird. ...I like it."
+  next: pudding
+- id: intro_brash
+  speaker: kelly
+  text: "Oh yeah? Well, I caught a frog with my BARE HANDS last summer. So."
+  next: pudding
+- id: intro_curious
+  speaker: kelly
+  text: "Seriously! Like, I know which bunk doesn't squeak. And which counselor gives out extra glow sticks."
+  next: pudding
+- id: intro_enthusiastic
+  speaker: kelly
+  text: "I KNOW. Three whole summers. I'm practically a counselor. Except I don't have a whistle. Yet."
+  next: pudding
+- id: intro_acknowledge
+  speaker: kelly
+  text: "Yep. So if you need to know anything, just ask me. Like, ANYTHING. Go ahead. ...Okay, later then."
+  next: pudding
+- id: intro_hungry
+  speaker: kelly
+  text: "Um... it's like ten in the morning. We JUST had breakfast. Okaaay, I'm gonna go find my cabin. Bye!"
+  next: end
+- id: intro_quiet
+  speaker: kelly
+  text: "Helloooo? Earth to new kid! ...Okay, never mind. I'm gonna go find my cabin. See ya."
+  next: end
+- id: pudding
+  speaker: kelly
+  text: "Okay, so the most important thing about camp: Mystery Pudding. Every Friday. Nobody knows what flavor it is. Marcus says it glows in the dark."
+- branch: true
+  speaker: player
+  options:
+    - tags: friendly
+      target: pudding_friendly
+    - tags: shy
+      target: pudding_shy
+    - tags: smart
+      target: pudding_smart
+    - tags: funny
+      target: pudding_funny
+    - tags: brash
+      target: pudding_brash
+    - tags: curious
+      target: pudding_curious
+    - tags: enthusiastic
+      target: pudding_enthusiastic
+    - tags: acknowledge
+      target: pudding_acknowledge
+    - tags: hungry
+      target: pudding_hungry
+    - timeout: true
+      target: pudding_quiet
+- id: pudding_friendly
+  speaker: kelly
+  text: "RIGHT? We should do a stakeout on Friday. You bring the flashlight, I'll bring the spoons."
+  next: lunch
+- id: pudding_shy
+  speaker: kelly
+  text: "Don't worry, you don't HAVE to eat it. You can just give yours to me."
+  next: lunch
+- id: pudding_smart
+  speaker: kelly
+  text: "Wait, three?! That's so random. ...Is the pudding made of octopus? Oh no. Oh NO."
+  next: lunch
+- id: pudding_funny
+  speaker: kelly
+  text: "Stop, I'm gonna snort! Okay, do the robot voice at campfire tonight. Promise."
+  next: lunch
+- id: pudding_brash
+  speaker: kelly
+  text: "Okay, big deal, if you're so brave, you eat the first spoonful on Friday. Deal? DEAL."
+  next: lunch
+- id: pudding_curious
+  speaker: kelly
+  text: "Okay, so. Some people think it's banana. Some people think it's butterscotch. I think it's BOTH."
+  next: lunch
+- id: pudding_enthusiastic
+  speaker: kelly
+  text: "Totally crazy. Last summer Marcus ate three bowls and couldn't feel his tongue for a whole day."
+  next: lunch
+- id: pudding_acknowledge
+  speaker: kelly
+  text: "'Oh, okay'? That's IT? This is the biggest mystery at camp! Ugh. I'm gonna go tell someone who actually cares."
+  next: end
+- id: pudding_quiet
+  speaker: kelly
+  text: "...Are you even listening? Wow. Okay. Bye, I guess."
+  next: end
+- id: pudding_hungry
+  speaker: kelly
+  text: "Ha! You're thinking about food too? We're basically twins."
+  next: lunch
+- id: lunch
+  speaker: kelly
+  text: "Oh! That's the lunch bell! You can sit at my table if you want. We have the good ketchup bottle."
+- branch: true
+  speaker: player
+  options:
+    - tags: friendly, curious, funny, smart, enthusiastic
+      target: lunch_yes
+    - tags: hungry
+      target: lunch_hungry
+    - tags: acknowledge
+      target: lunch_acknowledge
+    - tags: shy
+      target: lunch_shy
+    - tags: brash
+      target: lunch_brash
+    - timeout: true
+      target: lunch_quiet
+- id: lunch_yes
+  speaker: kelly
+  text: "Yesss! Come on, race you there! Last one's a rotten egg!"
+  next: end
+- id: lunch_acknowledge
+  speaker: kelly
+  text: "Cool, follow me! Oh, and sit on the left side. The right side of the bench wobbles."
+  next: end
+- id: lunch_shy
+  speaker: kelly
+  text: "You don't have to talk or anything. Just sit. I'll introduce you to everybody. It'll be fun, I promise."
+  next: end
+- id: lunch_brash
+  speaker: kelly
+  text: "Wow, okay, Big Deal. You're still sitting with me though. Come on!"
+  next: end
+- id: lunch_hungry
+  speaker: kelly
+  text: "It literally IS lunchtime. That was the bell. Did you hear ANYTHING I said? ...Come on, just follow me."
+  next: end
+- id: lunch_quiet
+  speaker: kelly
+  text: "...Or not. That's cool. Whatever. See ya around, new kid."

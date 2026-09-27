@@ -24,6 +24,14 @@
 ## true" (or the first option, if none is flagged) is followed
 ## automatically, without any card being played.
 ##
+## If the branch segment names a "speaker", a played card's text is first
+## shown as that speaker's line (so the player's dialogue comes from the
+## cards they play), and the chosen option is followed on the next advance.
+##
+## For debugging, [member debug_timeout_card] turns the countdown off and
+## instead adds an extra card after the player's own ones that, when played,
+## follows the timeout option just as if the timer had run out.
+##
 ## A segment's "next" (or a branch option's "target") may also be the
 ## special id "end" to finish the conversation immediately after that
 ## segment, regardless of what other segments follow it in the file - useful
@@ -52,6 +60,15 @@ const END_TARGET := "end"
 ## Debug aid: shows each response card's tags on the card, and lists every
 ## branch option's tags and target at a dialogue fork.
 @export var show_debug_tags: bool = true
+
+## Debug aid: disables the branch countdown (see [member
+## branch_timeout_seconds]) and instead offers an extra "timeout" card at
+## every branch, after the player's [member response_cards], that follows
+## the branch's timeout option as if the timer had run out.
+@export var debug_timeout_card: bool = true
+
+## Text shown on the [member debug_timeout_card] card.
+const DEBUG_TIMEOUT_CARD_TEXT := "[DEBUG] Timeout\n(say nothing)"
 
 @onready var speaker_label: Label = $SpeakerTab/SpeakerLabel
 @onready var speaker_portrait: TextureRect = $SpeakerPortrait
@@ -83,6 +100,11 @@ var _awaiting_branch_selection: bool = false
 ## follow automatically if [member branch_timer] runs out, or [code]-1[/code]
 ## if the current segment is not a branch (or its options list is empty).
 var _branch_timeout_option_index: int = -1
+
+## Index (into the current branch segment's "options") of the option to
+## follow on the next advance, while a played card's text is shown as the
+## branch's "speaker" line, or [code]-1[/code] if no such line is showing.
+var _pending_branch_option_index: int = -1
 
 ## Whether a press is currently being tracked, waiting for its matching
 ## release. Guards against advancing twice per tap: by default Godot's
@@ -121,6 +143,7 @@ func start_conversation(
 	_segments = DialogueParser.load_conversation(path)
 	_id_to_index = _build_id_index(_segments)
 	_index = -1
+	_pending_branch_option_index = -1
 	visible = not _segments.is_empty()
 	_advance_from_index(_index)
 
@@ -130,8 +153,15 @@ func start_conversation(
 ## the box and emits [signal conversation_finished] once the conversation is
 ## complete. Does nothing while a branch's cards are awaiting selection; use
 ## [method play_response_card] (or a card tap) to proceed past a branch.
+## While a played card is shown as the branch speaker's line, follows the
+## branch option that card chose instead.
 func advance() -> void:
 	if _awaiting_branch_selection:
+		return
+	if _pending_branch_option_index != -1:
+		var option_index := _pending_branch_option_index
+		_pending_branch_option_index = -1
+		_follow_branch_option(option_index)
 		return
 	_advance_from_index(_index)
 
@@ -140,7 +170,8 @@ func advance() -> void:
 ## its card had been double-tapped/double-clicked, jumping playback to the
 ## target of the branch option matching its tags. Does nothing if
 ## the current segment is not a branch awaiting selection, or if [param
-## index] is out of range.
+## index] is out of range. With [member debug_timeout_card] on, [param
+## index] [code]response_cards.size()[/code] plays the debug timeout card.
 func play_response_card(index: int) -> void:
 	if not _awaiting_branch_selection:
 		return
@@ -193,6 +224,8 @@ func _show_branch(segment: Dictionary) -> void:
 	var cards: Array[Control] = []
 	for response_card in response_cards:
 		cards.append(_build_response_card(response_card))
+	if debug_timeout_card:
+		cards.append(_build_response_card({"text": DEBUG_TIMEOUT_CARD_TEXT}))
 	_branch_timeout_option_index = DialogueParser.find_fallback_option(options)
 	branch_debug_label.visible = show_debug_tags
 	branch_debug_label.text = _describe_branch_options(options)
@@ -202,7 +235,11 @@ func _show_branch(segment: Dictionary) -> void:
 	# under its own selection fade-out tween.
 	branch_options.set_cards(cards)
 	branch_options.clear_selection()
-	_start_branch_timer(segment)
+	if debug_timeout_card:
+		branch_timer.stop()
+		branch_timeout_label.visible = false
+	else:
+		_start_branch_timer(segment)
 
 
 ## Starts [member branch_timer] counting down towards automatically
@@ -247,7 +284,7 @@ func _build_response_card(response_card: Dictionary) -> Control:
 	label.set_anchors_preset(Control.PRESET_FULL_RECT)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(label)
-	if show_debug_tags:
+	if show_debug_tags and response_card.has("tags"):
 		var tags_label := Label.new()
 		var tags: PackedStringArray = response_card.get("tags", PackedStringArray())
 		tags_label.text = "[%s]" % (", ".join(tags) if not tags.is_empty() else "no tags")
@@ -287,17 +324,30 @@ func _on_branch_timer_timeout() -> void:
 
 ## Called when response card [param index] is played: follows the current
 ## branch's option matching that card's tags, or the fallback option (see
-## [member _branch_timeout_option_index]) if none matches.
+## [member _branch_timeout_option_index]) if none matches. If the branch
+## names a "speaker", the card's text is first shown as their line, and the
+## option is followed on the next advance instead.
 func _on_branch_option_selected(index: int) -> void:
 	if not _awaiting_branch_selection:
+		return
+	if debug_timeout_card and index == response_cards.size():
+		_on_branch_timer_timeout()
 		return
 	if index < 0 or index >= response_cards.size():
 		return
 	var tags: PackedStringArray = response_cards[index].get("tags", PackedStringArray())
-	var options: Array = _segments[_index].get("options", [])
+	var segment := _segments[_index]
+	var options: Array = segment.get("options", [])
 	var option_index := DialogueParser.find_option_for_tags(options, tags)
 	if option_index == -1:
 		option_index = _branch_timeout_option_index
+	if segment.has("speaker"):
+		_show_dialogue({
+			"speaker": segment["speaker"],
+			"text": response_cards[index].get("text", ""),
+		})
+		_pending_branch_option_index = option_index
+		return
 	_follow_branch_option(option_index)
 
 
