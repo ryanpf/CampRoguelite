@@ -6,8 +6,10 @@
 ## Verifies that the collect icon is shown only on segments offering a
 ## card, that tapping it adds the card to the player's inventory without
 ## advancing the dialogue, that the collected card is offered at later
-## branches (and stays in the inventory across conversations), and that a
-## card already held isn't offered again.
+## branches (and stays in the inventory across conversations), that a
+## card already held isn't offered again, and that an offered card's
+## draining bar runs out after which its icon grays and (outside debug
+## mode) can no longer be collected.
 ##
 ## The project must have imported its resources at least once (e.g. via a
 ## prior editor run, or `godot --headless --import`). Run with:
@@ -101,6 +103,39 @@ func _initialize() -> void:
 	_simulate_tap(dialogue_box)
 	if collect_card_button.visible:
 		failures.append("Expected no collect icon for a card the player already holds.")
+
+	# An offered card's bar drains; once it runs out the icon grays and,
+	# outside debug mode, can no longer be collected.
+	var collect_card_bar: ProgressBar = collect_card_button.get_node("CollectCardBar")
+	dialogue_box.collected_response_cards.clear()
+	dialogue_box.collect_card_seconds = 0.2
+	for debug_on in [false, true]:
+		dialogue_box.debug_collect_expired_cards = debug_on
+		_start(dialogue_box)
+		deck_size = dialogue_box.response_cards.size()
+		_simulate_tap(dialogue_box)
+		_simulate_tap(dialogue_box)
+		dialogue_box.play_response_card(_card_index_with_tags(dialogue_box, ["curious", "friendly"]))
+		_simulate_tap(dialogue_box)
+		if not collect_card_button.visible or not collect_card_bar.visible:
+			failures.append("Expected the collect icon and its bar on Kelly's glow sticks line.")
+		if collect_card_button.disabled or collect_card_button.modulate != Color.WHITE:
+			failures.append("Expected a freshly offered card's icon to be enabled and not grayed.")
+		await create_timer(0.1).timeout
+		await process_frame
+		if collect_card_bar.value <= 0.0 or collect_card_bar.value >= 1.0:
+			failures.append("Expected the collect bar to be partway drained, got %f." % collect_card_bar.value)
+		await create_timer(0.3).timeout
+		if not collect_card_button.visible:
+			failures.append("Expected an expired card's icon to stay shown (grayed).")
+		if collect_card_button.modulate == Color.WHITE or collect_card_bar.value != 0.0:
+			failures.append("Expected an expired card's icon to gray out with an empty bar.")
+		if collect_card_button.disabled == debug_on:
+			failures.append("Expected an expired card's icon to be %s with debug mode %s." % ["enabled" if debug_on else "disabled", "on" if debug_on else "off"])
+		dialogue_box.collect_response_card()
+		var expected_size := deck_size + (1 if debug_on else 0)
+		if dialogue_box.response_cards.size() != expected_size:
+			failures.append("Expected an expired card %s with debug mode %s." % ["to still be collectible" if debug_on else "not to be collectible", "on" if debug_on else "off"])
 
 	await process_frame
 

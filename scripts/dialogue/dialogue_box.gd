@@ -45,6 +45,12 @@
 ## collected_response_cards], so it stays in their inventory for later
 ## conversations too) without advancing the dialogue. The icon isn't shown
 ## if the player already holds a card with the same text.
+##
+## A card can only be grabbed for a limited time ([member
+## collect_card_seconds]): a bar on the icon drains as the time runs out,
+## after which the icon grays out and can no longer be tapped - unless
+## [member debug_collect_expired_cards] is on, in which case it stays
+## collectible (but still grayed, to show the window has passed).
 extends Control
 
 signal conversation_finished
@@ -79,6 +85,26 @@ const END_TARGET := "end"
 ## the branch's timeout option as if the timer had run out.
 @export var debug_timeout_card: bool = true
 
+## Time, in seconds, a dialogue segment's collectible card can be grabbed
+## via [member collect_card_button] before it expires. Non-positive means
+## no time limit (and no draining bar).
+@export var collect_card_seconds: float = 3.0
+
+## Debug aid: lets an expired collectible card (see [member
+## collect_card_seconds]) still be collected, though its icon is grayed.
+@export var debug_collect_expired_cards: bool = true
+
+## Tint applied to [member collect_card_button] once its card has expired,
+## on top of swapping its gold styles for gray ones.
+const EXPIRED_CARD_MODULATE := Color(0.8, 0.8, 0.8, 1.0)
+
+## Background color of [member collect_card_button] once its card has
+## expired.
+const EXPIRED_CARD_COLOR := Color(0.55, 0.55, 0.55, 1.0)
+
+## [member collect_card_button]'s style states swapped to gray on expiry.
+const _COLLECT_CARD_STYLE_STATES := ["normal", "hover", "pressed", "disabled"]
+
 ## Text shown on the [member debug_timeout_card] card.
 const DEBUG_TIMEOUT_CARD_TEXT := "[DEBUG] Timeout\n(say nothing)"
 
@@ -90,6 +116,8 @@ const DEBUG_TIMEOUT_CARD_TEXT := "[DEBUG] Timeout\n(say nothing)"
 @onready var branch_debug_label: Label = $BranchDebugLabel
 @onready var branch_timer: Timer = $BranchTimer
 @onready var collect_card_button: Button = $CollectCardButton
+@onready var collect_card_bar: ProgressBar = $CollectCardButton/CollectCardBar
+@onready var collect_card_timer: Timer = $CollectCardTimer
 
 var _segments: Array[Dictionary] = []
 var _characters: Dictionary = {}
@@ -110,6 +138,18 @@ var collected_response_cards: Array[Dictionary] = []
 ## [method DialogueParser.get_collectible_card]), or an empty [Dictionary]
 ## if there's none to collect (or it was already collected).
 var _collectible_card: Dictionary = {}
+
+## Whether [member _collectible_card]'s time to be grabbed (see [member
+## collect_card_seconds]) has run out.
+var _collectible_card_expired: bool = false
+
+## [member collect_card_button]'s own styles, keyed by state (see [constant
+## _COLLECT_CARD_STYLE_STATES]), restored when a new card is offered.
+var _collect_card_styles: Dictionary = {}
+
+## Gray stand-in for [member collect_card_button]'s styles once its card
+## has expired.
+var _expired_card_style: StyleBox
 
 ## Maps a segment's "id" (see [DialogueParser]) to its index in [member
 ## _segments], used to resolve branch "target"s and segment "next"s.
@@ -148,11 +188,20 @@ func _ready() -> void:
 	branch_timer.timeout.connect(_on_branch_timer_timeout)
 	collect_card_button.pressed.connect(collect_response_card)
 	collect_card_button.visible = false
+	collect_card_timer.one_shot = true
+	collect_card_timer.timeout.connect(_on_collect_card_timer_timeout)
+	for state in _COLLECT_CARD_STYLE_STATES:
+		_collect_card_styles[state] = collect_card_button.get_theme_stylebox(state)
+	_expired_card_style = _collect_card_styles["normal"].duplicate()
+	if _expired_card_style is StyleBoxFlat:
+		_expired_card_style.bg_color = EXPIRED_CARD_COLOR
 
 
 func _process(_delta: float) -> void:
 	if branch_timeout_label.visible and not branch_timer.is_stopped():
 		branch_timeout_label.text = str(ceili(branch_timer.time_left))
+	if collect_card_bar.visible and not collect_card_timer.is_stopped():
+		collect_card_bar.value = collect_card_timer.time_left / collect_card_timer.wait_time
 
 
 ## Loads the conversation at [param path] and starts playing it back,
@@ -210,9 +259,12 @@ func play_response_card(index: int) -> void:
 ## Adds the card offered by the segment currently on screen (see [member
 ## collect_card_button]) to [member response_cards] and [member
 ## collected_response_cards], hides the icon and emits [signal
-## response_card_collected]. Does nothing if there's no card to collect.
+## response_card_collected]. Does nothing if there's no card to collect,
+## or if it has expired (unless [member debug_collect_expired_cards] is on).
 func collect_response_card() -> void:
 	if _collectible_card.is_empty():
+		return
+	if _collectible_card_expired and not debug_collect_expired_cards:
 		return
 	var card := _collectible_card
 	_set_collectible_card({})
@@ -231,13 +283,49 @@ func _has_card_with_text(text: String) -> bool:
 
 
 ## Offers [param card] (see [method DialogueParser.get_collectible_card])
-## for collection via [member collect_card_button], or hides the icon if
-## [param card] is empty or the player already holds a card with its text.
+## for collection via [member collect_card_button], starting its [member
+## collect_card_seconds] countdown, or hides the icon if [param card] is
+## empty or the player already holds a card with its text.
 func _set_collectible_card(card: Dictionary) -> void:
 	if not card.is_empty() and _has_card_with_text(str(card.get("text", ""))):
 		card = {}
 	_collectible_card = card
+	_collectible_card_expired = false
 	collect_card_button.visible = not card.is_empty()
+	collect_card_button.disabled = false
+	collect_card_button.modulate = Color.WHITE
+	_set_collect_card_styles(_collect_card_styles)
+	var timed := not card.is_empty() and collect_card_seconds > 0.0
+	collect_card_bar.visible = timed
+	collect_card_bar.value = 1.0
+	if timed:
+		collect_card_timer.wait_time = collect_card_seconds
+		collect_card_timer.start()
+	else:
+		collect_card_timer.stop()
+
+
+## Called when [member collect_card_timer] runs out while a collectible
+## card is offered: grays out [member collect_card_button] and, unless
+## [member debug_collect_expired_cards] is on, stops it being tapped.
+func _on_collect_card_timer_timeout() -> void:
+	if _collectible_card.is_empty():
+		return
+	_collectible_card_expired = true
+	collect_card_bar.value = 0.0
+	collect_card_button.modulate = EXPIRED_CARD_MODULATE
+	var expired_styles := {}
+	for state in _COLLECT_CARD_STYLE_STATES:
+		expired_styles[state] = _expired_card_style
+	_set_collect_card_styles(expired_styles)
+	collect_card_button.disabled = not debug_collect_expired_cards
+
+
+## Overrides [member collect_card_button]'s styles with [param styles],
+## keyed by state (see [constant _COLLECT_CARD_STYLE_STATES]).
+func _set_collect_card_styles(styles: Dictionary) -> void:
+	for state in styles:
+		collect_card_button.add_theme_stylebox_override(state, styles[state])
 
 
 func _advance_from_index(from_index: int) -> void:
@@ -364,8 +452,9 @@ func _build_response_card(response_card: Dictionary) -> Control:
 ## Shows/hides the branch UI over the still-visible dialogue text/speaker
 ## tab: [param active] toggles [member _awaiting_branch_selection] and
 ## [member branch_options]' visibility, and (when turning it off) stops the
-## countdown; turning it on also hides [member collect_card_button]. The normal dialogue panel and speaker tab stay visible the
-## whole time, so the card component and dialog box are visible together
+## countdown; turning it on also hides [member collect_card_button]. The
+## normal dialogue panel and speaker tab stay visible the whole time, so
+## the card component and dialog box are visible together
 ## (the branch's cards are shown alongside, not instead of, the last
 ## dialogue line, per [DialogueParser]).
 func _set_branch_active(active: bool) -> void:
