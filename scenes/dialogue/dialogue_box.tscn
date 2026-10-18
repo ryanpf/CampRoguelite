@@ -1,7 +1,31 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/dialogue/dialogue_box.gd" id="1_dlgbx"]
 [ext_resource type="PackedScene" path="res://scenes/ui/card_swiper/card_swiper.tscn" id="2_crdsw"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_cllct"]
+bg_color = Color(0.95, 0.8, 0.3, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 1, 1, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_cllpr"]
+bg_color = Color(1, 0.9, 0.5, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 1, 1, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
 
 [node name="DialogueBox" type="Control"]
 layout_mode = 3
@@ -127,3 +151,25 @@ autowrap_mode = 3
 visible = false
 
 [node name="BranchTimer" type="Timer" parent="."]
+
+[node name="CollectCardButton" type="Button" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -56.0
+offset_top = -12.0
+offset_right = -16.0
+offset_bottom = 44.0
+grow_horizontal = 0
+tooltip_text = "Collect response card"
+focus_mode = 0
+theme_override_colors/font_color = Color(0.25, 0.15, 0, 1)
+theme_override_colors/font_hover_color = Color(0.25, 0.15, 0, 1)
+theme_override_colors/font_pressed_color = Color(0.25, 0.15, 0, 1)
+theme_override_font_sizes/font_size = 28
+theme_override_styles/normal = SubResource("StyleBoxFlat_cllct")
+theme_override_styles/hover = SubResource("StyleBoxFlat_cllpr")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_cllpr")
+text = "+"
+visible = false

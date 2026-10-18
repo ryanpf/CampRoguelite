@@ -3,7 +3,8 @@
 ## card tags) and segments converging back onto a shared segment via "next",
 ## verifies the resulting segments are shaped as expected, and that response
 ## card tags resolve to the matching option (or the fallback). Also checks
-## [ResponseCardParser] parses a response card inventory.
+## [ResponseCardParser] parses a response card inventory, and that
+## segments' collectible response cards are read.
 ##
 ## Run with:
 ##
@@ -100,8 +101,29 @@ func _initialize() -> void:
 			or Array(cards[2]["tags"]) != ["brash", "smart"]:
 		failures.append("Unexpected parsed response cards: %s." % [cards])
 
+	var collectible := DialogueParser.parse("""
+- speaker: kelly
+  text: "Last one's a rotten egg!"
+  card: "Last one's a rotten egg!"
+  card_tags: Brash, enthusiastic
+- speaker: kelly
+  text: "No card here."
+- speaker: kelly
+  text: "Untagged card."
+  card: "Me too!"
+""")
+	var offered := DialogueParser.get_collectible_card(collectible[0])
+	if offered.get("text") != "Last one's a rotten egg!" \
+			or Array(offered.get("tags", PackedStringArray())) != ["brash", "enthusiastic"]:
+		failures.append("Expected a collectible card tagged 'brash, enthusiastic', got %s." % [offered])
+	if not DialogueParser.get_collectible_card(collectible[1]).is_empty():
+		failures.append("Expected a segment without a 'card' key to offer no collectible card.")
+	var untagged := DialogueParser.get_collectible_card(collectible[2])
+	if untagged.get("text") != "Me too!" or not untagged.get("tags", ["x"]).is_empty():
+		failures.append("Expected an untagged collectible card, got %s." % [untagged])
+
 	if failures.is_empty():
-		print("PASS: DialogueParser parses branch options, 'next' jump targets, and response card tags.")
+		print("PASS: DialogueParser parses branch options, 'next' jump targets, response card tags, and collectible cards.")
 		quit(0)
 	else:
 		for failure in failures:

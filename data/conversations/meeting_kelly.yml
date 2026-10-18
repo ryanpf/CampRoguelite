@@ -10,6 +10,11 @@
 # early (via "next: end") before she ever gets to the lunch invite. So does
 # silence - each branch's fallback ("timeout: true") option, followed when
 # the timer runs out, always has Kelly give up and walk off.
+#
+# Some of Kelly's reactions (trivia, invitations, catchphrases) also offer a
+# collectible response card via a "card" key: tapping its icon while the
+# line is shown adds it to the player's deck, so they can say it themselves
+# at a later branch (or in a later conversation).
 - speaker: kelly
   text: "Hey! You're new, right? I can tell 'cause you're holding your map upside down."
 - speaker: kelly
@@ -50,10 +55,14 @@
 - id: intro_brash
   speaker: kelly
   text: "Oh yeah? Well, I caught a frog with my BARE HANDS last summer. So."
+  card: "I caught a frog with my BARE HANDS once. So."
+  card_tags: brash
   next: pudding
 - id: intro_curious
   speaker: kelly
   text: "Seriously! Like, I know which bunk doesn't squeak. And which counselor gives out extra glow sticks."
+  card: "Psst... which counselor gives out the extra glow sticks?"
+  card_tags: curious, friendly
   next: pudding
 - id: intro_enthusiastic
   speaker: kelly
@@ -100,6 +109,8 @@
 - id: pudding_friendly
   speaker: kelly
   text: "RIGHT? We should do a stakeout on Friday. You bring the flashlight, I'll bring the spoons."
+  card: "Pudding stakeout on Friday? I'll bring the flashlight!"
+  card_tags: friendly, enthusiastic
   next: lunch
 - id: pudding_shy
   speaker: kelly
@@ -120,6 +131,8 @@
 - id: pudding_curious
   speaker: kelly
   text: "Okay, so. Some people think it's banana. Some people think it's butterscotch. I think it's BOTH."
+  card: "Fun fact: Mystery Pudding is banana AND butterscotch."
+  card_tags: smart, funny
   next: lunch
 - id: pudding_enthusiastic
   speaker: kelly
@@ -158,10 +171,14 @@
 - id: lunch_yes
   speaker: kelly
   text: "Yesss! Come on, race you there! Last one's a rotten egg!"
+  card: "Last one's a rotten egg!"
+  card_tags: brash, enthusiastic
   next: end
 - id: lunch_acknowledge
   speaker: kelly
   text: "Cool, follow me! Oh, and sit on the left side. The right side of the bench wobbles."
+  card: "Never sit on the right side of the bench. It wobbles."
+  card_tags: smart
   next: end
 - id: lunch_shy
   speaker: kelly

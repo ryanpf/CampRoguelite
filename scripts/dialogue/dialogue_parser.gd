@@ -80,6 +80,24 @@
 ## next advance. This lets the player's side of a conversation come
 ## entirely from the cards they play. Letting the timer run out plays no
 ## card, so nothing is said and the timeout option is followed directly.
+##
+## A plain dialogue segment (typically one that doesn't lead into a branch)
+## may also offer a collectible response card: a "card" key holding the
+## card's text, plus optional comma-separated "card_tags" (same format as a
+## response card's "tags", see [ResponseCardParser]). The line itself might
+## be a trivial fact, an invitation to an event, a catchphrase or the like,
+## and the card lets the player repeat it later - for example:
+##
+## [codeblock]
+## - speaker: kelly
+##   text: "Last one's a rotten egg!"
+##   card: "Last one's a rotten egg!"
+##   card_tags: brash, enthusiastic
+## [/codeblock]
+##
+## While such a segment is shown, an icon lets the player add the card to
+## their response card inventory (see [DialogueBox]); see [method
+## get_collectible_card].
 class_name DialogueParser
 extends RefCounted
 
@@ -232,6 +250,23 @@ static func find_fallback_option(options: Array) -> int:
 		if is_timeout_option(options[i]):
 			return i
 	return 0 if not options.is_empty() else -1
+
+
+## Returns the collectible response card offered by [param segment] (see
+## the class description), shaped like a response card from [method
+## ResponseCardParser.parse] ({"text": String, "tags": PackedStringArray}),
+## or an empty [Dictionary] if [param segment] offers none (has no, or an
+## empty, "card" key). Branch segments never offer one.
+static func get_collectible_card(segment: Dictionary) -> Dictionary:
+	if is_branch(segment):
+		return {}
+	var text := str(segment.get("card", "")).strip_edges()
+	if text.is_empty():
+		return {}
+	return {
+		"text": text,
+		"tags": ResponseCardParser.parse_tags({"tags": segment.get("card_tags", "")}),
+	}
 
 
 static func _unquote(value: String) -> String:

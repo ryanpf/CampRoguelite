@@ -37,9 +37,21 @@
 ## segment, regardless of what other segments follow it in the file - useful
 ## for a branch that cuts a conversation short instead of continuing on to
 ## its normal ending.
+##
+## A dialogue segment with a "card" key (see [DialogueParser]) offers a
+## collectible response card: while it's on screen, an icon ([member
+## collect_card_button]) is shown on the dialogue box, and tapping it adds
+## the card to the player's [member response_cards] (and [member
+## collected_response_cards], so it stays in their inventory for later
+## conversations too) without advancing the dialogue. The icon isn't shown
+## if the player already holds a card with the same text.
 extends Control
 
 signal conversation_finished
+
+## Emitted when the player collects [param card] (shaped like an entry of
+## [member response_cards]) from a dialogue segment's icon.
+signal response_card_collected(card: Dictionary)
 
 ## Default character file used to resolve conversation "speaker" ids to
 ## display names and portraits.
@@ -77,6 +89,7 @@ const DEBUG_TIMEOUT_CARD_TEXT := "[DEBUG] Timeout\n(say nothing)"
 @onready var branch_timeout_label: Label = $BranchTimeoutLabel
 @onready var branch_debug_label: Label = $BranchDebugLabel
 @onready var branch_timer: Timer = $BranchTimer
+@onready var collect_card_button: Button = $CollectCardButton
 
 var _segments: Array[Dictionary] = []
 var _characters: Dictionary = {}
@@ -86,6 +99,17 @@ var _index: int = -1
 ## "tags": PackedStringArray} (see [ResponseCardParser]), offered as the cards at every
 ## branch node. Loaded by [method start_conversation].
 var response_cards: Array[Dictionary] = []
+
+## Response cards the player has collected from dialogue segments (see
+## [method collect_response_card]), in the order collected. Unlike the rest
+## of [member response_cards], these survive [method start_conversation]:
+## they're added back on top of each newly loaded inventory.
+var collected_response_cards: Array[Dictionary] = []
+
+## The collectible card offered by the segment currently on screen (see
+## [method DialogueParser.get_collectible_card]), or an empty [Dictionary]
+## if there's none to collect (or it was already collected).
+var _collectible_card: Dictionary = {}
 
 ## Maps a segment's "id" (see [DialogueParser]) to its index in [member
 ## _segments], used to resolve branch "target"s and segment "next"s.
@@ -122,6 +146,8 @@ func _ready() -> void:
 	branch_debug_label.visible = false
 	branch_timer.one_shot = true
 	branch_timer.timeout.connect(_on_branch_timer_timeout)
+	collect_card_button.pressed.connect(collect_response_card)
+	collect_card_button.visible = false
 
 
 func _process(_delta: float) -> void:
@@ -140,6 +166,9 @@ func start_conversation(
 ) -> void:
 	_characters = CharacterParser.load_characters(characters_path)
 	response_cards = ResponseCardParser.load_cards(response_cards_path)
+	for card in collected_response_cards:
+		if not _has_card_with_text(str(card.get("text", ""))):
+			response_cards.append(card)
 	_segments = DialogueParser.load_conversation(path)
 	_id_to_index = _build_id_index(_segments)
 	_index = -1
@@ -178,6 +207,39 @@ func play_response_card(index: int) -> void:
 	branch_options.select_card(index)
 
 
+## Adds the card offered by the segment currently on screen (see [member
+## collect_card_button]) to [member response_cards] and [member
+## collected_response_cards], hides the icon and emits [signal
+## response_card_collected]. Does nothing if there's no card to collect.
+func collect_response_card() -> void:
+	if _collectible_card.is_empty():
+		return
+	var card := _collectible_card
+	_set_collectible_card({})
+	response_cards.append(card)
+	collected_response_cards.append(card)
+	response_card_collected.emit(card)
+
+
+## Returns whether [member response_cards] already holds a card whose text
+## is [param text].
+func _has_card_with_text(text: String) -> bool:
+	for card in response_cards:
+		if str(card.get("text", "")) == text:
+			return true
+	return false
+
+
+## Offers [param card] (see [method DialogueParser.get_collectible_card])
+## for collection via [member collect_card_button], or hides the icon if
+## [param card] is empty or the player already holds a card with its text.
+func _set_collectible_card(card: Dictionary) -> void:
+	if not card.is_empty() and _has_card_with_text(str(card.get("text", ""))):
+		card = {}
+	_collectible_card = card
+	collect_card_button.visible = not card.is_empty()
+
+
 func _advance_from_index(from_index: int) -> void:
 	var next_index := from_index + 1
 	if from_index >= 0 and from_index < _segments.size():
@@ -191,6 +253,7 @@ func _show_segment(index: int) -> void:
 	_index = index
 	if _index >= _segments.size():
 		_set_branch_active(false)
+		_set_collectible_card({})
 		visible = false
 		conversation_finished.emit()
 		return
@@ -211,6 +274,7 @@ func _show_dialogue(segment: Dictionary) -> void:
 	speaker_portrait.texture = portrait
 	speaker_portrait.visible = portrait != null
 	dialogue_text.text = str(segment.get("text", ""))
+	_set_collectible_card(DialogueParser.get_collectible_card(segment))
 
 
 ## Displays the player's [member response_cards] as cards in [member
@@ -300,13 +364,15 @@ func _build_response_card(response_card: Dictionary) -> Control:
 ## Shows/hides the branch UI over the still-visible dialogue text/speaker
 ## tab: [param active] toggles [member _awaiting_branch_selection] and
 ## [member branch_options]' visibility, and (when turning it off) stops the
-## countdown. The normal dialogue panel and speaker tab stay visible the
+## countdown; turning it on also hides [member collect_card_button]. The normal dialogue panel and speaker tab stay visible the
 ## whole time, so the card component and dialog box are visible together
 ## (the branch's cards are shown alongside, not instead of, the last
 ## dialogue line, per [DialogueParser]).
 func _set_branch_active(active: bool) -> void:
 	_awaiting_branch_selection = active
 	branch_options.visible = active
+	if active:
+		_set_collectible_card({})
 	if not active:
 		branch_timer.stop()
 		branch_timeout_label.visible = false
